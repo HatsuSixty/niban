@@ -1,5 +1,12 @@
 use std::fmt;
 
+#[macro_export]
+macro_rules! lexer_type {
+    () => {
+        Peekable<impl Iterator<Item=Result<Token<'a>, LexerError<'a>>>>
+    }
+}
+
 fn is_special_character(c: char) -> bool {
     Token::from_char(c, Default::default()).is_some() || c.is_whitespace()
 }
@@ -26,7 +33,7 @@ impl Keyword {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     Keyword,
     String,
@@ -52,7 +59,7 @@ impl<'a> fmt::Display for Location<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token<'a> {
     pub kind: TokenKind,
     pub keyword: Option<Keyword>,
@@ -127,6 +134,7 @@ impl<'a> fmt::Display for Token<'a> {
     }
 }
 
+#[derive(Debug)]
 pub enum LexerError<'a> {
     Eof(Location<'a>),
     StringEof(Location<'a>),

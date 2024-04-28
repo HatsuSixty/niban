@@ -2,9 +2,11 @@ use std::process::ExitCode;
 use std::result;
 use std::fs;
 
+mod parser;
 mod lexer;
 
 use lexer::Lexer;
+use parser::parse_statement_toplevel;
 
 type Result<T> = result::Result<T, ()>;
 
@@ -15,14 +17,10 @@ fn start() -> Result<()> {
         eprintln!("ERROR: could not open file `{file_path}`: {e}");
     })?;
 
-    let lexer = Lexer::new(&source_code, file_path);
+    let mut lexer = Lexer::new(&source_code, file_path).peekable();
+    let statement = parse_statement_toplevel(&mut lexer)?;
 
-    for t in lexer {
-        let token = t.map_err(|err| {
-            eprintln!("{err}");
-        })?;
-        println!("{token}");
-    }
+    println!("{statement:?}");
 
     Ok(())
 }
