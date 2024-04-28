@@ -6,8 +6,6 @@ mod lexer;
 
 use lexer::Lexer;
 
-use crate::lexer::LexerError;
-
 type Result<T> = result::Result<T, ()>;
 
 fn start() -> Result<()> {
@@ -17,20 +15,12 @@ fn start() -> Result<()> {
         eprintln!("ERROR: could not open file `{file_path}`: {e}");
     })?;
 
-    let mut lexer = Lexer::new(&source_code, file_path);
+    let lexer = Lexer::new(&source_code, file_path);
 
-    loop {
-        let token = match lexer.next_token() {
-            Ok(token) => token,
-            Err(err) => match err {
-                LexerError::Eof(_) => break,
-                _ => {
-                    eprintln!("{err}");
-                    return Err(());
-                }
-            },
-        };
-
+    for t in lexer {
+        let token = t.map_err(|err| {
+            eprintln!("{err}");
+        })?;
         println!("{token}");
     }
 

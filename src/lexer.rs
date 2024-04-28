@@ -178,7 +178,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> Result<Token, LexerError> {
+    pub fn next_token(&mut self) -> Result<Token<'a>, LexerError<'a>> {
         if self.eof() {
             return Err(LexerError::Eof(self.loc.clone()));
         }
@@ -252,9 +252,15 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<'a>;
+    type Item = Result<Token<'a>, LexerError<'a>>;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
-        todo!()
+        match self.next_token() {
+            Ok(token) => Some(Ok(token)),
+            Err(err) => match err {
+                LexerError::Eof(_) => None,
+                _ => Some(Err(err)),
+            },
+        }
     }
 }
