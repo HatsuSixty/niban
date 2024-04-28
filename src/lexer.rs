@@ -8,13 +8,13 @@ fn is_special_character(c: char) -> bool {
 
 #[derive(Debug, Clone)]
 pub enum Keyword {
-    Fn,
+    Proc,
 }
 
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Fn => write!(f, "fn"),
+            Self::Proc => write!(f, "proc"),
         }
     }
 }
@@ -22,7 +22,7 @@ impl fmt::Display for Keyword {
 impl Keyword {
     fn from_string(text: &str) -> Option<Self> {
         match text {
-            "fn" => Some(Self::Fn),
+            "proc" => Some(Self::Proc),
             _ => None,
         }
     }
