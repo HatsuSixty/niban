@@ -1,7 +1,5 @@
 use std::fmt;
 
-use super::Result;
-
 fn is_special_character(c: char) -> bool {
     Token::from_char(c, Default::default()).is_some() || c.is_whitespace()
 }
@@ -129,6 +127,22 @@ impl<'a> fmt::Display for Token<'a> {
     }
 }
 
+pub enum LexerError<'a> {
+    Eof(Location<'a>),
+    StringEof(Location<'a>),
+}
+
+impl<'a> fmt::Display for LexerError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Eof(loc) => write!(f, "{loc}: ERROR: reached end of file"),
+            Self::StringEof(loc) => {
+                write!(f, "{loc}: ERROR: reached end of file while parsing string")
+            }
+        }
+    }
+}
+
 pub struct Lexer<'a> {
     source_code: &'a str,
     loc: Location<'a>,
@@ -164,9 +178,9 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> Result<Option<Token>> {
+    pub fn next_token(&mut self) -> Result<Token, LexerError> {
         if self.eof() {
-            return Ok(None);
+            return Err(LexerError::Eof(self.loc.clone()));
         }
 
         while self.cursor().is_whitespace() {
@@ -174,22 +188,21 @@ impl<'a> Lexer<'a> {
 
             self.cursor += 1;
             if self.eof() {
-                return Ok(None);
+                return Err(LexerError::Eof(self.loc.clone()));
             }
         }
 
         if let Some(token) = Token::from_char(self.cursor(), self.loc.clone()) {
             self.advance_loc(self.cursor());
             self.cursor += 1;
-            return Ok(Some(token));
+            return Ok(token);
         }
 
         let string_loc = self.loc.clone();
         if self.cursor() == '"' {
             self.cursor += 1;
             if self.eof() {
-                eprintln!("{string_loc}: ERROR: reached end of file while parsing string");
-                return Err(());
+                return Err(LexerError::StringEof(string_loc));
             }
             self.advance_loc(self.cursor());
 
@@ -199,20 +212,18 @@ impl<'a> Lexer<'a> {
 
                 self.cursor += 1;
                 if self.eof() {
-                    eprintln!("{string_loc}: ERROR: reached end of file while parsing string");
-                    return Err(());
+                    return Err(LexerError::StringEof(string_loc));
                 }
                 self.advance_loc(self.cursor());
             }
 
             self.cursor += 1;
             if self.eof() {
-                eprintln!("{string_loc}: ERROR: reached end of file while parsing string");
-                return Err(());
+                return Err(LexerError::StringEof(string_loc));
             }
             self.advance_loc(self.cursor());
 
-            return Ok(Some(Token::from_string(string, string_loc)));
+            return Ok(Token::from_string(string, string_loc));
         }
 
         let mut current_token_text = String::new();
@@ -233,9 +244,17 @@ impl<'a> Lexer<'a> {
         };
 
         if let Some(keyword) = Keyword::from_string(&current_token_text.as_str()) {
-            return Ok(Some(Token::from_keyword(keyword, loc)));
+            return Ok(Token::from_keyword(keyword, loc));
         }
 
-        Ok(Some(Token::from_word(current_token_text, loc)))
+        Ok(Token::from_word(current_token_text, loc))
+    }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token<'a>;
+
+    fn next(&mut self) -> Option<<Self as Iterator>::Item> {
+        todo!()
     }
 }
