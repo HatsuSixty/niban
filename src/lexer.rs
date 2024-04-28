@@ -38,6 +38,7 @@ pub enum TokenKind {
     OpenBrace,
     CloseBrace,
     Semicolon,
+    Comma,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -70,6 +71,7 @@ impl<'a> Token<'a> {
             '{' => kind = Some(TokenKind::OpenBrace),
             '}' => kind = Some(TokenKind::CloseBrace),
             ';' => kind = Some(TokenKind::Semicolon),
+            ',' => kind = Some(TokenKind::Comma),
             _ => kind = None,
         }
 
