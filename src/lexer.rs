@@ -8,7 +8,7 @@ macro_rules! lexer_type {
 }
 
 fn is_special_character(c: char) -> bool {
-    Token::from_char(c, Default::default()).is_some() || c.is_whitespace()
+    Token::from_char(c, Location::new("")).is_some() || c.is_whitespace()
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -91,7 +91,7 @@ impl PartialEq for TokenKind {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Location<'a> {
     pub file_path: &'a str,
     pub line: u32,
@@ -101,6 +101,16 @@ pub struct Location<'a> {
 impl<'a> fmt::Display for Location<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}:{}", self.file_path, self.line, self.col)
+    }
+}
+
+impl<'a> Location<'a> {
+    fn new(file_path: &'a str) -> Self {
+        Self {
+            file_path,
+            line: 1,
+            col: 1,
+        }
     }
 }
 
@@ -199,11 +209,7 @@ impl<'a> Lexer<'a> {
     pub fn new(source_code: &'a str, file_loc: &'a str) -> Lexer<'a> {
         Lexer {
             source_code,
-            loc: Location {
-                file_path: file_loc,
-                line: 1,
-                col: 1,
-            },
+            loc: Location::new(file_loc),
             cursor: 0,
         }
     }
