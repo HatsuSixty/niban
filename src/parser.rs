@@ -3,9 +3,8 @@ use crate::lexer_type;
 
 use std::iter::Peekable;
 
-#[derive(Debug)]
-pub enum ExpressionKind {
-    String,
+#[derive(Debug, Clone)]
+pub enum Operator {
     Plus,
     Minus,
     Mult,
@@ -13,12 +12,28 @@ pub enum ExpressionKind {
     Mod,
 }
 
-#[derive(Debug)]
-pub struct Expression {
-    pub kind: ExpressionKind,
-    pub left: Option<Box<Expression>>,
-    pub right: Option<Box<Expression>>,
-    pub string: Option<String>,
+impl Operator {
+    fn from_token<'a>(token: Token<'a>) -> Option<Operator> {
+        match token.token {
+            TokenKind::Plus => Some(Self::Plus),
+            TokenKind::Minus => Some(Self::Minus),
+            TokenKind::Mult => Some(Self::Mult),
+            TokenKind::Div => Some(Self::Div),
+            TokenKind::Mod => Some(Self::Mod),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Expression {
+    Binary {
+        kind: Operator,
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    String(String),
+    Integer(i64),
 }
 
 #[derive(Debug)]
@@ -47,6 +62,12 @@ fn peek_token<'a>(lexer: &mut lexer_type!()) -> super::Result<Option<Token<'a>>>
         }
     }
     Ok(None)
+}
+
+fn next_token<'a>(lexer: &mut lexer_type!()) -> super::Result<Option<Token<'a>>> {
+    let ret = peek_token(lexer);
+    lexer.next();
+    ret
 }
 
 fn expect_token<'a>(
@@ -107,7 +128,7 @@ pub fn parse_block<'a>(
             s
         } else {
             eprintln!(
-                "{}: ERROR: reached end of file while parsing statemend",
+                "{}: ERROR: reached end of file while parsing statement",
                 token.loc
             );
             return Err(());
@@ -191,15 +212,10 @@ pub fn parse_proccall<'a>(lexer: &mut lexer_type!()) -> super::Result<Statement>
     let _close_paren = expect_token("in procedure call", name.loc, lexer, TokenKind::CloseParen)?;
 
     let mut parameters = Vec::new();
-    parameters.push(Expression {
-        kind: ExpressionKind::String,
-        left: None,
-        right: None,
-        string: match string.token {
-            TokenKind::String(s) => Some(s),
-            _ => unreachable!(),
-        },
-    });
+    parameters.push(Expression::String(match string.token {
+        TokenKind::String(s) => s,
+        _ => unreachable!(),
+    }));
 
     Ok(Statement::ProcCall {
         name: match name.token {
@@ -225,14 +241,7 @@ pub fn parse_statement<'a>(lexer: &mut lexer_type!()) -> super::Result<Option<St
         },
         TokenKind::Word(_) => statement = parse_proccall(lexer)?,
         _ => {
-            eprintln!(
-                "{}: ERROR: unexpected token `{}`",
-                token.loc,
-                match token.token {
-                    TokenKind::String(s) => s,
-                    _ => unreachable!(),
-                }
-            );
+            eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
             return Err(());
         }
     }
@@ -256,6 +265,112 @@ pub fn parse_statement_toplevel<'a>(lexer: &mut lexer_type!()) -> super::Result<
                 "{}: ERROR: no toplevel statement starts with token `{:?}`",
                 token.loc, token.token,
             );
+            Err(())
+        }
+    }
+}
+
+pub fn parse_expression<'a>(
+    loc: Location<'a>,
+    lexer: &mut lexer_type!(),
+) -> super::Result<Expression> {
+    parse_additive_expression(loc, lexer)
+}
+
+pub fn parse_multiplicative_expression<'a>(
+    loc: Location<'a>,
+    lexer: &mut lexer_type!(),
+) -> super::Result<Expression> {
+    let mut left = parse_primary_expression(loc.clone(), lexer)?;
+
+    let mut loc;
+    loop {
+        let token = if let Some(tok) = peek_token(lexer)? {
+            tok
+        } else {
+            break;
+        };
+        loc = token.loc.clone();
+
+        let operator = match Operator::from_token(token.clone()) {
+            Some(op) => match op {
+                Operator::Mult | Operator::Div | Operator::Mod => op,
+                _ => break,
+            },
+            None => break,
+        };
+
+        lexer.next();
+
+        let right = parse_primary_expression(loc.clone(), lexer)?;
+
+        left = Expression::Binary {
+            kind: operator,
+            left: Box::new(left.clone()),
+            right: Box::new(right),
+        };
+    }
+
+    Ok(left)
+}
+
+pub fn parse_additive_expression<'a>(
+    loc: Location<'a>,
+    lexer: &mut lexer_type!(),
+) -> super::Result<Expression> {
+    let mut left = parse_multiplicative_expression(loc.clone(), lexer)?;
+
+    let mut loc;
+    loop {
+        let token = if let Some(tok) = peek_token(lexer)? {
+            tok
+        } else {
+            break;
+        };
+        loc = token.loc.clone();
+
+        let operator = match Operator::from_token(token.clone()) {
+            Some(op) => match op {
+                Operator::Plus | Operator::Minus => op,
+                _ => break,
+            },
+            None => break,
+        };
+
+        lexer.next();
+
+        let right = parse_multiplicative_expression(loc.clone(), lexer)?;
+
+        left = Expression::Binary {
+            kind: operator,
+            left: Box::new(left.clone()),
+            right: Box::new(right),
+        };
+    }
+
+    Ok(left)
+}
+
+pub fn parse_primary_expression<'a>(
+    loc: Location<'a>,
+    lexer: &mut lexer_type!(),
+) -> super::Result<Expression> {
+    let token = if let Some(tok) = next_token(lexer)? {
+        tok
+    } else {
+        eprintln!("{loc}: ERROR: reached end of file while parsing expression");
+        return Err(());
+    };
+
+    match token.token {
+        TokenKind::String(word) => Ok(Expression::String(word)),
+        TokenKind::OpenParen => {
+            let value = parse_expression(loc.clone(), lexer);
+            expect_token("in expression", loc, lexer, TokenKind::CloseParen)?;
+            value
+        }
+        _ => {
+            eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
             Err(())
         }
     }

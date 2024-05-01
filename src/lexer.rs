@@ -44,6 +44,11 @@ pub enum TokenKind {
     CloseBrace,
     Semicolon,
     Comma,
+    Plus,
+    Minus,
+    Div,
+    Mult,
+    Mod,
 }
 
 impl PartialEq for TokenKind {
@@ -58,7 +63,12 @@ impl PartialEq for TokenKind {
             | TokenKind::OpenBrace
             | TokenKind::CloseBrace
             | TokenKind::Semicolon
-            | TokenKind::Comma => {}
+            | TokenKind::Comma
+            | TokenKind::Plus
+            | TokenKind::Minus
+            | TokenKind::Div
+            | TokenKind::Mult
+            | TokenKind::Mod => {}
         }
 
         match (self, other) {
@@ -71,6 +81,11 @@ impl PartialEq for TokenKind {
             (TokenKind::CloseBrace, TokenKind::CloseBrace) => true,
             (TokenKind::Semicolon, TokenKind::Semicolon) => true,
             (TokenKind::Comma, TokenKind::Comma) => true,
+            (TokenKind::Plus, TokenKind::Plus) => true,
+            (TokenKind::Minus, TokenKind::Minus) => true,
+            (TokenKind::Div, TokenKind::Div) => true,
+            (TokenKind::Mult, TokenKind::Mult) => true,
+            (TokenKind::Mod, TokenKind::Mod) => true,
             _ => false,
         }
     }
@@ -105,6 +120,11 @@ impl<'a> Token<'a> {
             '}' => kind = Some(TokenKind::CloseBrace),
             ';' => kind = Some(TokenKind::Semicolon),
             ',' => kind = Some(TokenKind::Comma),
+            '+' => kind = Some(TokenKind::Plus),
+            '-' => kind = Some(TokenKind::Minus),
+            '/' => kind = Some(TokenKind::Div),
+            '*' => kind = Some(TokenKind::Mult),
+            '%' => kind = Some(TokenKind::Mod),
             _ => kind = None,
         }
 
