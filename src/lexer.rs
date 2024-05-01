@@ -11,7 +11,7 @@ fn is_special_character(c: char) -> bool {
     Token::from_char(c, Default::default()).is_some() || c.is_whitespace()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     Proc,
 }
@@ -33,17 +33,47 @@ impl Keyword {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum TokenKind {
-    Keyword,
-    String,
-    Word,
+    Keyword(Keyword),
+    String(String),
+    Word(String),
     OpenParen,
     CloseParen,
     OpenBrace,
     CloseBrace,
     Semicolon,
     Comma,
+}
+
+impl PartialEq for TokenKind {
+    fn eq(&self, other: &TokenKind) -> bool {
+        // Weird way to assert number of enum variants
+        match self {
+            TokenKind::Keyword(_)
+            | TokenKind::String(_)
+            | TokenKind::Word(_)
+            | TokenKind::OpenParen
+            | TokenKind::CloseParen
+            | TokenKind::OpenBrace
+            | TokenKind::CloseBrace
+            | TokenKind::Semicolon
+            | TokenKind::Comma => {}
+        }
+
+        match (self, other) {
+            (TokenKind::Keyword(a), TokenKind::Keyword(b)) => a == b,
+            (TokenKind::String(_), TokenKind::String(_)) => true,
+            (TokenKind::Word(_), TokenKind::Word(_)) => true,
+            (TokenKind::OpenParen, TokenKind::OpenParen) => true,
+            (TokenKind::CloseParen, TokenKind::CloseParen) => true,
+            (TokenKind::OpenBrace, TokenKind::OpenBrace) => true,
+            (TokenKind::CloseBrace, TokenKind::CloseBrace) => true,
+            (TokenKind::Semicolon, TokenKind::Semicolon) => true,
+            (TokenKind::Comma, TokenKind::Comma) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -61,9 +91,7 @@ impl<'a> fmt::Display for Location<'a> {
 
 #[derive(Debug, Clone)]
 pub struct Token<'a> {
-    pub kind: TokenKind,
-    pub keyword: Option<Keyword>,
-    pub string: String,
+    pub token: TokenKind,
     pub loc: Location<'a>,
 }
 
@@ -85,36 +113,28 @@ impl<'a> Token<'a> {
         }
 
         Some(Self {
-            kind: kind.unwrap(),
-            string: format!("{c}"),
-            keyword: None,
+            token: kind.unwrap(),
             loc,
         })
     }
 
     fn from_keyword(keyword: Keyword, loc: Location<'a>) -> Self {
         Self {
-            kind: TokenKind::Keyword,
-            keyword: Some(keyword.clone()),
-            string: format!("{keyword}"),
+            token: TokenKind::Keyword(keyword),
             loc,
         }
     }
 
     fn from_word(word: String, loc: Location<'a>) -> Self {
         Self {
-            kind: TokenKind::Word,
-            keyword: None,
-            string: word,
+            token: TokenKind::Word(word),
             loc,
         }
     }
 
     fn from_string(string: String, loc: Location<'a>) -> Self {
         Self {
-            kind: TokenKind::String,
-            keyword: None,
-            string,
+            token: TokenKind::String(string),
             loc,
         }
     }
@@ -122,14 +142,12 @@ impl<'a> Token<'a> {
 
 impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {:?}: ", self.loc, self.kind)?;
-        match self.kind {
-            TokenKind::Keyword => write!(
-                f,
-                "{}",
-                self.keyword.clone().expect("This should never fail")
-            ),
-            _ => write!(f, "\"{}\"", self.string),
+        write!(f, "{}: {:?}: ", self.loc, self.token)?;
+        match &self.token {
+            TokenKind::Keyword(keyword) => write!(f, "{}", keyword),
+            TokenKind::String(string) => write!(f, "\"{}\"", string),
+            TokenKind::Word(word) => write!(f, "{}", word),
+            _ => write!(f, "{:?}", self.token),
         }
     }
 }

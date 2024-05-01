@@ -63,11 +63,11 @@ fn expect_token<'a>(
         }
     };
 
-    if t.kind != token {
+    if t.token != token {
         eprintln!(
-            "{loc}: ERROR: expected token `{token:?}` in {inn} but got `{got:?}`",
+            "{loc}: ERROR: expected token `{token:?}` {inn} but got `{got:?}`",
             loc = t.loc,
-            got = t.kind
+            got = t.token
         );
         return Err(());
     }
@@ -99,7 +99,7 @@ pub fn parse_block<'a>(
             return Err(());
         };
 
-        if token.kind == TokenKind::CloseBrace {
+        if token.token == TokenKind::CloseBrace {
             break;
         }
 
@@ -133,8 +133,9 @@ pub fn parse_proc<'a>(lexer: &mut lexer_type!()) -> super::Result<Statement> {
         "in procedure definition",
         proc.loc.clone(),
         lexer,
-        TokenKind::Word,
+        TokenKind::Word("".into()),
     )?;
+
     let _open_paren = expect_token(
         "in procedure definition",
         proc.loc.clone(),
@@ -151,7 +152,10 @@ pub fn parse_proc<'a>(lexer: &mut lexer_type!()) -> super::Result<Statement> {
     let block = parse_block(close_paren.loc, lexer)?;
 
     Ok(Statement::ProcDecl {
-        name: name.string,
+        name: match name.token {
+            TokenKind::Word(n) => n.into(),
+            _ => unreachable!(),
+        },
         statements: block,
     })
 }
@@ -175,9 +179,12 @@ pub fn parse_proccall<'a>(lexer: &mut lexer_type!()) -> super::Result<Statement>
         );
         return Err(());
     };
-    if string.kind != TokenKind::String {
-        eprintln!("{}: ERROR: for now, only procedure calls that take one string as parameter are allowed", string.loc);
-        return Err(());
+    match string.token {
+        TokenKind::String(_) => {}
+        _ => {
+            eprintln!("{}: ERROR: for now, only procedure calls that take one string as parameter are allowed", string.loc);
+            return Err(());
+        }
     }
     lexer.next();
 
@@ -188,11 +195,17 @@ pub fn parse_proccall<'a>(lexer: &mut lexer_type!()) -> super::Result<Statement>
         kind: ExpressionKind::String,
         left: None,
         right: None,
-        string: Some(string.string),
+        string: match string.token {
+            TokenKind::String(s) => Some(s),
+            _ => unreachable!(),
+        },
     });
 
     Ok(Statement::ProcCall {
-        name: name.string,
+        name: match name.token {
+            TokenKind::Word(s) => s,
+            _ => unreachable!(),
+        },
         expressions: parameters,
     })
 }
@@ -206,13 +219,20 @@ pub fn parse_statement<'a>(lexer: &mut lexer_type!()) -> super::Result<Option<St
 
     let statement;
 
-    match token.kind {
-        TokenKind::Keyword => match token.keyword.unwrap() {
+    match token.token {
+        TokenKind::Keyword(keyword) => match keyword {
             Keyword::Proc => statement = parse_proc(lexer)?,
         },
-        TokenKind::Word => statement = parse_proccall(lexer)?,
+        TokenKind::Word(_) => statement = parse_proccall(lexer)?,
         _ => {
-            eprintln!("{}: ERROR: unexpected token `{}`", token.loc, token.string,);
+            eprintln!(
+                "{}: ERROR: unexpected token `{}`",
+                token.loc,
+                match token.token {
+                    TokenKind::String(s) => s,
+                    _ => unreachable!(),
+                }
+            );
             return Err(());
         }
     }
@@ -227,14 +247,14 @@ pub fn parse_statement_toplevel<'a>(lexer: &mut lexer_type!()) -> super::Result<
         return Ok(None);
     };
 
-    match token.kind {
-        TokenKind::Keyword => match token.keyword.unwrap() {
+    match token.token {
+        TokenKind::Keyword(keyword) => match keyword {
             Keyword::Proc => Ok(Some(parse_proc(lexer)?)),
         },
         _ => {
             eprintln!(
-                "{}: ERROR: no toplevel statement starts with token `{}`",
-                token.loc, token.string,
+                "{}: ERROR: no toplevel statement starts with token `{:?}`",
+                token.loc, token.token,
             );
             Err(())
         }
