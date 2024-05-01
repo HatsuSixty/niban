@@ -38,6 +38,7 @@ pub enum TokenKind {
     Keyword(Keyword),
     String(String),
     Word(String),
+    Integer(i64),
     OpenParen,
     CloseParen,
     OpenBrace,
@@ -56,6 +57,7 @@ impl TokenKind {
         match (self, other) {
             (Self::String(_), Self::String(_)) => true,
             (Self::Word(_), Self::Word(_)) => true,
+            (Self::Integer(_), Self::Integer(_)) => true,
             _ => self == other,
         }
     }
@@ -128,6 +130,13 @@ impl<'a> Token<'a> {
     fn from_word(word: String, loc: Location<'a>) -> Self {
         Self {
             token: TokenKind::Word(word),
+            loc,
+        }
+    }
+
+    fn from_integer(integer: i64, loc: Location<'a>) -> Self {
+        Self {
+            token: TokenKind::Integer(integer),
             loc,
         }
     }
@@ -269,7 +278,11 @@ impl<'a> Lexer<'a> {
             return Ok(Token::from_keyword(keyword, loc));
         }
 
-        Ok(Token::from_word(current_token_text, loc))
+        if let Ok(num) = current_token_text.parse::<i64>() {
+            Ok(Token::from_integer(num, loc))
+        } else {
+            Ok(Token::from_word(current_token_text, loc))
+        }
     }
 }
 
