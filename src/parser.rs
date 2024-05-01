@@ -181,41 +181,64 @@ pub fn parse_proc<'a>(lexer: &mut lexer_type!()) -> super::Result<Statement> {
     })
 }
 
-pub fn parse_proccall<'a>(lexer: &mut lexer_type!()) -> super::Result<Statement> {
-    let name = lexer.next().unwrap().unwrap();
-
+pub fn parse_procparams<'a>(
+    loc: Location<'a>,
+    lexer: &mut lexer_type!(),
+) -> super::Result<Vec<Expression>> {
     let open_paren = expect_token(
-        "in procedure call",
-        name.loc.clone(),
+        "in procedure parameters",
+        loc.clone(),
         lexer,
         TokenKind::OpenParen,
     )?;
 
-    let string = if let Some(s) = peek_token(lexer)? {
-        s
-    } else {
-        eprintln!(
-            "{}: ERROR: reached end of file while parsing procedure call parameters",
-            open_paren.loc
-        );
-        return Err(());
-    };
-    match string.token {
-        TokenKind::String(_) => {}
-        _ => {
-            eprintln!("{}: ERROR: for now, only procedure calls that take one string as parameter are allowed", string.loc);
+    let mut expressions = Vec::new();
+
+    let mut loc;
+    loop {
+        let token = if let Some(tok) = peek_token(lexer)? {
+            tok
+        } else {
+            eprintln!(
+                "{}: ERROR: reached end of file while parsing procedure parameters",
+                open_paren.loc
+            );
             return Err(());
+        };
+        loc = token.loc;
+
+        if token.token == TokenKind::CloseParen {
+            break;
         }
+
+        let expr = parse_expression(loc.clone(), lexer)?;
+
+        if let Some(tok) = peek_token(lexer)? {
+            match tok.token {
+                TokenKind::Comma => {
+                    let _ = lexer.next();
+                }
+                TokenKind::CloseParen => {}
+                _ => {
+                    eprintln!(
+                        "{}: ERROR: expected token `Comma` in procedure parameters but got `{tok:?}`",
+                        loc.clone(), tok = tok.token
+                    );
+                    return Err(());
+                }
+            }
+        }
+
+        expressions.push(expr);
     }
     lexer.next();
 
-    let _close_paren = expect_token("in procedure call", name.loc, lexer, TokenKind::CloseParen)?;
+    Ok(expressions)
+}
 
-    let mut parameters = Vec::new();
-    parameters.push(Expression::String(match string.token {
-        TokenKind::String(s) => s,
-        _ => unreachable!(),
-    }));
+pub fn parse_proccall<'a>(lexer: &mut lexer_type!()) -> super::Result<Statement> {
+    let name = lexer.next().unwrap().unwrap();
+    let parameters = parse_procparams(name.loc.clone(), lexer)?;
 
     Ok(Statement::ProcCall {
         name: match name.token {
