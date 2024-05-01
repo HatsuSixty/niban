@@ -1,6 +1,6 @@
 proc main() {
     proc cursed() {
-        print("hi" + "hi2", "hi");
+        print(10 + 10);
     };
     print("Hello, world!");
 }

@@ -386,7 +386,8 @@ pub fn parse_primary_expression<'a>(
     };
 
     match token.token {
-        TokenKind::String(word) => Ok(Expression::String(word)),
+        TokenKind::String(string) => Ok(Expression::String(string)),
+        TokenKind::Integer(integer) => Ok(Expression::Integer(integer)),
         TokenKind::OpenParen => {
             let value = parse_expression(loc.clone(), lexer);
             expect_token("in expression", loc, lexer, TokenKind::CloseParen)?;
