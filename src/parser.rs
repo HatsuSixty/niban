@@ -221,8 +221,8 @@ pub fn parse_procparams<'a>(
                 TokenKind::CloseParen => {}
                 _ => {
                     eprintln!(
-                        "{}: ERROR: expected token `Comma` in procedure parameters but got `{tok:?}`",
-                        loc.clone(), tok = tok.token
+                        "{loc}: ERROR: expected token `Comma` in procedure parameters but got `{tok:?}`",
+                        loc = tok.loc, tok = tok.token
                     );
                     return Err(());
                 }
