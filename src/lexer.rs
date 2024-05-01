@@ -33,7 +33,7 @@ impl Keyword {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     Keyword(Keyword),
     String(String),
@@ -51,42 +51,12 @@ pub enum TokenKind {
     Mod,
 }
 
-impl PartialEq for TokenKind {
-    fn eq(&self, other: &TokenKind) -> bool {
-        // Weird way to assert number of enum variants
-        match self {
-            TokenKind::Keyword(_)
-            | TokenKind::String(_)
-            | TokenKind::Word(_)
-            | TokenKind::OpenParen
-            | TokenKind::CloseParen
-            | TokenKind::OpenBrace
-            | TokenKind::CloseBrace
-            | TokenKind::Semicolon
-            | TokenKind::Comma
-            | TokenKind::Plus
-            | TokenKind::Minus
-            | TokenKind::Div
-            | TokenKind::Mult
-            | TokenKind::Mod => {}
-        }
-
+impl TokenKind {
+    pub fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (TokenKind::Keyword(a), TokenKind::Keyword(b)) => a == b,
-            (TokenKind::String(_), TokenKind::String(_)) => true,
-            (TokenKind::Word(_), TokenKind::Word(_)) => true,
-            (TokenKind::OpenParen, TokenKind::OpenParen) => true,
-            (TokenKind::CloseParen, TokenKind::CloseParen) => true,
-            (TokenKind::OpenBrace, TokenKind::OpenBrace) => true,
-            (TokenKind::CloseBrace, TokenKind::CloseBrace) => true,
-            (TokenKind::Semicolon, TokenKind::Semicolon) => true,
-            (TokenKind::Comma, TokenKind::Comma) => true,
-            (TokenKind::Plus, TokenKind::Plus) => true,
-            (TokenKind::Minus, TokenKind::Minus) => true,
-            (TokenKind::Div, TokenKind::Div) => true,
-            (TokenKind::Mult, TokenKind::Mult) => true,
-            (TokenKind::Mod, TokenKind::Mod) => true,
-            _ => false,
+            (Self::String(_), Self::String(_)) => true,
+            (Self::Word(_), Self::Word(_)) => true,
+            _ => self == other,
         }
     }
 }

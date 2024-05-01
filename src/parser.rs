@@ -84,7 +84,7 @@ fn expect_token<'a>(
         }
     };
 
-    if t.token != token {
+    if !t.token.eq(&token) {
         eprintln!(
             "{loc}: ERROR: expected token `{token:?}` {inn} but got `{got:?}`",
             loc = t.loc,
@@ -120,7 +120,7 @@ pub fn parse_block<'a>(
             return Err(());
         };
 
-        if token.token == TokenKind::CloseBrace {
+        if token.token.eq(&TokenKind::CloseBrace) {
             break;
         }
 
@@ -207,7 +207,7 @@ pub fn parse_procparams<'a>(
         };
         loc = token.loc;
 
-        if token.token == TokenKind::CloseParen {
+        if token.token.eq(&TokenKind::CloseParen) {
             break;
         }
 
