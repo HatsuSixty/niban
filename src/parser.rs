@@ -211,7 +211,7 @@ pub fn parse_procparams<'a>(
             break;
         }
 
-        let expr = parse_expression(loc.clone(), lexer)?;
+        let expr = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest())?;
 
         if let Some(tok) = peek_token(lexer)? {
             match tok.token {
@@ -293,55 +293,46 @@ pub fn parse_statement_toplevel<'a>(lexer: &mut lexer_type!()) -> super::Result<
     }
 }
 
-pub fn parse_expression<'a>(
-    loc: Location<'a>,
-    lexer: &mut lexer_type!(),
-) -> super::Result<Expression> {
-    parse_additive_expression(loc, lexer)
+#[derive(PartialEq)]
+enum OperatorPrecedence {
+    Primary,
+    Multiplicative,
+    Additive,
 }
 
-pub fn parse_multiplicative_expression<'a>(
-    loc: Location<'a>,
-    lexer: &mut lexer_type!(),
-) -> super::Result<Expression> {
-    let mut left = parse_primary_expression(loc.clone(), lexer)?;
-
-    let mut loc;
-    loop {
-        let token = if let Some(tok) = peek_token(lexer)? {
-            tok
-        } else {
-            break;
-        };
-        loc = token.loc.clone();
-
-        let operator = match Operator::from_token(token.clone()) {
-            Some(op) => match op {
-                Operator::Mult | Operator::Div | Operator::Mod => op,
-                _ => break,
-            },
-            None => break,
-        };
-
-        lexer.next();
-
-        let right = parse_primary_expression(loc.clone(), lexer)?;
-
-        left = Expression::Binary {
-            kind: operator,
-            left: Box::new(left.clone()),
-            right: Box::new(right),
-        };
+impl OperatorPrecedence {
+    fn lowest() -> Self {
+        Self::Additive
     }
 
-    Ok(left)
+    fn higher(&self) -> Self {
+        match self {
+            Self::Primary => Self::Primary,
+            Self::Multiplicative => Self::Primary,
+            Self::Additive => Self::Multiplicative,
+        }
+    }
+
+    fn matches_precedence(&self, operator: Operator) -> bool {
+        match (self, operator) {
+            (Self::Primary, _) => false,
+            (Self::Multiplicative, Operator::Div | Operator::Mult | Operator::Mod) => true,
+            (Self::Additive, Operator::Plus | Operator::Minus) => true,
+            _ => false,
+        }
+    }
 }
 
-pub fn parse_additive_expression<'a>(
+fn parse_expression<'a>(
     loc: Location<'a>,
     lexer: &mut lexer_type!(),
+    precedence: OperatorPrecedence,
 ) -> super::Result<Expression> {
-    let mut left = parse_multiplicative_expression(loc.clone(), lexer)?;
+    if precedence == OperatorPrecedence::Primary {
+        return parse_primary_expression(loc, lexer);
+    }
+
+    let mut left = parse_expression(loc.clone(), lexer, precedence.higher())?;
 
     let mut loc;
     loop {
@@ -353,16 +344,17 @@ pub fn parse_additive_expression<'a>(
         loc = token.loc.clone();
 
         let operator = match Operator::from_token(token.clone()) {
-            Some(op) => match op {
-                Operator::Plus | Operator::Minus => op,
-                _ => break,
-            },
+            Some(op) => {
+                if !precedence.matches_precedence(op.clone()) {
+                    break;
+                }
+                op
+            }
             None => break,
         };
-
         lexer.next();
 
-        let right = parse_multiplicative_expression(loc.clone(), lexer)?;
+        let right = parse_expression(loc, lexer, precedence.higher())?;
 
         left = Expression::Binary {
             kind: operator,
@@ -389,7 +381,7 @@ pub fn parse_primary_expression<'a>(
         TokenKind::String(string) => Ok(Expression::String(string)),
         TokenKind::Integer(integer) => Ok(Expression::Integer(integer)),
         TokenKind::OpenParen => {
-            let value = parse_expression(loc.clone(), lexer);
+            let value = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest());
             expect_token("in expression", loc, lexer, TokenKind::CloseParen)?;
             value
         }
