@@ -3,7 +3,7 @@ use std::fmt;
 #[macro_export]
 macro_rules! lexer_type {
     () => {
-        Peekable<impl Iterator<Item=Result<Token<'a>, LexerError<'a>>>>
+        Peekable<impl Iterator<Item=Result<Token, LexerError>>>
     }
 }
 
@@ -64,22 +64,22 @@ impl TokenKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct Location<'a> {
-    pub file_path: &'a str,
+pub struct Location {
+    pub file_path: String,
     pub line: u32,
     pub col: u32,
 }
 
-impl<'a> fmt::Display for Location<'a> {
+impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}:{}", self.file_path, self.line, self.col)
     }
 }
 
-impl<'a> Location<'a> {
-    fn new(file_path: &'a str) -> Self {
+impl Location {
+    fn new(file_path: &str) -> Self {
         Self {
-            file_path,
+            file_path: file_path.to_string(),
             line: 1,
             col: 1,
         }
@@ -87,13 +87,13 @@ impl<'a> Location<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Token<'a> {
+pub struct Token {
     pub token: TokenKind,
-    pub loc: Location<'a>,
+    pub loc: Location,
 }
 
-impl<'a> Token<'a> {
-    fn from_char(c: char, loc: Location<'a>) -> Option<Self> {
+impl Token {
+    fn from_char(c: char, loc: Location) -> Option<Self> {
         let kind;
         match c {
             '(' => kind = Some(TokenKind::OpenParen),
@@ -120,28 +120,28 @@ impl<'a> Token<'a> {
         })
     }
 
-    fn from_keyword(keyword: Keyword, loc: Location<'a>) -> Self {
+    fn from_keyword(keyword: Keyword, loc: Location) -> Self {
         Self {
             token: TokenKind::Keyword(keyword),
             loc,
         }
     }
 
-    fn from_word(word: String, loc: Location<'a>) -> Self {
+    fn from_word(word: String, loc: Location) -> Self {
         Self {
             token: TokenKind::Word(word),
             loc,
         }
     }
 
-    fn from_integer(integer: i64, loc: Location<'a>) -> Self {
+    fn from_integer(integer: i64, loc: Location) -> Self {
         Self {
             token: TokenKind::Integer(integer),
             loc,
         }
     }
 
-    fn from_string(string: String, loc: Location<'a>) -> Self {
+    fn from_string(string: String, loc: Location) -> Self {
         Self {
             token: TokenKind::String(string),
             loc,
@@ -149,7 +149,7 @@ impl<'a> Token<'a> {
     }
 }
 
-impl<'a> fmt::Display for Token<'a> {
+impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {:?}: ", self.loc, self.token)?;
         match &self.token {
@@ -162,12 +162,12 @@ impl<'a> fmt::Display for Token<'a> {
 }
 
 #[derive(Debug)]
-pub enum LexerError<'a> {
-    Eof(Location<'a>),
-    StringEof(Location<'a>),
+pub enum LexerError {
+    Eof(Location),
+    StringEof(Location),
 }
 
-impl<'a> fmt::Display for LexerError<'a> {
+impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Eof(loc) => write!(f, "{loc}: ERROR: reached end of file"),
@@ -180,7 +180,7 @@ impl<'a> fmt::Display for LexerError<'a> {
 
 pub struct Lexer<'a> {
     source_code: &'a str,
-    loc: Location<'a>,
+    loc: Location,
     cursor: usize,
 }
 
@@ -209,7 +209,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> Result<Token<'a>, LexerError<'a>> {
+    pub fn next_token(&mut self) -> Result<Token, LexerError> {
         if self.eof() {
             return Err(LexerError::Eof(self.loc.clone()));
         }
@@ -269,7 +269,7 @@ impl<'a> Lexer<'a> {
         }
 
         let loc = Location {
-            file_path: self.loc.file_path,
+            file_path: self.loc.file_path.clone(),
             line: self.loc.line,
             col: self.loc.col - current_token_text.len() as u32,
         };
@@ -287,7 +287,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Result<Token<'a>, LexerError<'a>>;
+    type Item = Result<Token, LexerError>;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
         match self.next_token() {

@@ -4,7 +4,9 @@ use std::fs;
 
 mod parser;
 mod lexer;
+mod compiler;
 
+use compiler::Compiler;
 use lexer::Lexer;
 use parser::parse_statement_toplevel;
 
@@ -18,9 +20,14 @@ fn start() -> Result<()> {
     })?;
 
     let mut lexer = Lexer::new(&source_code, file_path).peekable();
-    let statement = parse_statement_toplevel(&mut lexer)?;
 
-    println!("{statement:?}");
+    let mut ast = Vec::new();
+    while let Some(stmt) = parse_statement_toplevel(&mut lexer)? {
+        ast.push(stmt);
+    }
+
+    let mut compiler = Compiler::new();
+    println!("{}", compiler.compile_ast(ast)?);
 
     Ok(())
 }
