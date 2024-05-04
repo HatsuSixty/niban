@@ -398,15 +398,15 @@ pub fn parse_primary_expression(
     match token.token {
         TokenKind::String(string) => Ok(Expression {
             expression: ExpressionKind::String(string),
-            loc,
+            loc: token.loc,
         }),
         TokenKind::Integer(integer) => Ok(Expression {
             expression: ExpressionKind::Integer(integer),
-            loc,
+            loc: token.loc,
         }),
         TokenKind::OpenParen => {
             let value = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest());
-            expect_token("in expression", loc, lexer, TokenKind::CloseParen)?;
+            expect_token("in expression", token.loc, lexer, TokenKind::CloseParen)?;
             value
         }
         _ => {
