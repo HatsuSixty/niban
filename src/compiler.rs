@@ -72,7 +72,10 @@ impl Compiler {
                     };
 
                     let string = self.string(string.clone());
-                    let _ = writeln!(self.qbe_code, "call $printf(l $print_fmt, ..., l ${string})",);
+                    let _ = writeln!(
+                        self.qbe_code,
+                        "call $printf(l $print_fmt, ..., l ${string})",
+                    );
                 }
                 _ => {
                     if !self.scope.last().unwrap().procs.contains(&name) {
