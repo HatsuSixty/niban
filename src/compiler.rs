@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::{Expression, Operator, Statement};
+use crate::parser::{Expression, Operator, Statement, StatementKind};
 
 #[derive(Debug, Clone)]
 pub struct Proc {
@@ -112,70 +112,64 @@ impl Compiler {
         let mut ir = Vec::new();
 
         match statement {
-            Statement::ProcDecl {
-                loc: _,
-                name,
-                statements,
-            } => {
-                let mut instructions = Vec::new();
-                for statement in statements {
-                    for inst in self.compile_statement(statement)? {
-                        instructions.push(inst);
-                    }
-                }
-
-                let proc = Proc { instructions };
-                self.scope
-                    .last_mut()
-                    .unwrap()
-                    .procs
-                    .insert(name, proc.clone());
-
-                ir.push(Ir::Proc(proc));
-            }
-            Statement::ProcCall {
-                loc,
-                name,
-                expressions,
-            } => {
-                for expression in &expressions {
-                    for inst in self.compile_expression(expression.clone())? {
-                        ir.push(inst);
-                    }
-                }
-
-                match name.as_str() {
-                    "print" => {
-                        if expressions.len() != 1 {
-                            eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
-                            return Err(());
+            Statement { statement, loc } => match statement {
+                StatementKind::ProcDecl { name, statements } => {
+                    let mut instructions = Vec::new();
+                    for statement in statements {
+                        for inst in self.compile_statement(statement)? {
+                            instructions.push(inst);
                         }
+                    }
 
-                        match ir.last().unwrap().datatype() {
-                            Datatype::Integer => ir.push(Ir::PrintInt),
-                            Datatype::String => ir.push(Ir::PrintString),
-                            Datatype::None => {
-                                // TODO: Proper reporting of the location
-                                eprintln!("{loc}: ERROR: procedure `{name}` expects `Integer` or `String`, but got `None`");
+                    let proc = Proc { instructions };
+                    self.scope
+                        .last_mut()
+                        .unwrap()
+                        .procs
+                        .insert(name, proc.clone());
+
+                    ir.push(Ir::Proc(proc));
+                }
+                StatementKind::ProcCall { name, expressions } => {
+                    for expression in &expressions {
+                        for inst in self.compile_expression(expression.clone())? {
+                            ir.push(inst);
+                        }
+                    }
+
+                    match name.as_str() {
+                        "print" => {
+                            if expressions.len() != 1 {
+                                eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
                                 return Err(());
                             }
-                        }
-                    }
-                    _ => {
-                        if !self.scope.last().unwrap().procs.contains_key(&name) {
-                            eprintln!("{loc}: ERROR: unknown procedure `{name}`");
-                            return Err(());
-                        }
 
-                        if expressions.len() != 0 {
-                            eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
-                            return Err(());
+                            match ir.last().unwrap().datatype() {
+                                Datatype::Integer => ir.push(Ir::PrintInt),
+                                Datatype::String => ir.push(Ir::PrintString),
+                                Datatype::None => {
+                                    // TODO: Proper reporting of the location
+                                    eprintln!("{loc}: ERROR: procedure `{name}` expects `Integer` or `String`, but got `None`");
+                                    return Err(());
+                                }
+                            }
                         }
+                        _ => {
+                            if !self.scope.last().unwrap().procs.contains_key(&name) {
+                                eprintln!("{loc}: ERROR: unknown procedure `{name}`");
+                                return Err(());
+                            }
 
-                        ir.push(Ir::ProcCall(name));
+                            if expressions.len() != 0 {
+                                eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
+                                return Err(());
+                            }
+
+                            ir.push(Ir::ProcCall(name));
+                        }
                     }
                 }
-            }
+            },
         }
 
         Ok(ir)

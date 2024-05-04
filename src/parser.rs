@@ -37,17 +37,21 @@ pub enum Expression {
 }
 
 #[derive(Debug)]
-pub enum Statement {
+pub enum StatementKind {
     ProcDecl {
-        loc: Location,
         name: String,
         statements: Vec<Statement>,
     },
     ProcCall {
-        loc: Location,
         name: String,
         expressions: Vec<Expression>,
     },
+}
+
+#[derive(Debug)]
+pub struct Statement {
+    pub loc: Location,
+    pub statement: StatementKind,
 }
 
 fn peek_token(lexer: &mut lexer_type!()) -> super::Result<Option<Token>> {
@@ -99,10 +103,7 @@ fn expect_token(
     Ok(t)
 }
 
-pub fn parse_block(
-    loc: Location,
-    lexer: &mut lexer_type!(),
-) -> super::Result<Vec<Statement>> {
+pub fn parse_block(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Vec<Statement>> {
     let open_brace = expect_token(
         "at the beginning of a block",
         loc,
@@ -174,13 +175,15 @@ pub fn parse_proc(lexer: &mut lexer_type!()) -> super::Result<Statement> {
 
     let block = parse_block(close_paren.loc, lexer)?;
 
-    Ok(Statement::ProcDecl {
-        loc: name.loc,
-        name: match name.token {
-            TokenKind::Word(n) => n.into(),
-            _ => unreachable!(),
+    Ok(Statement {
+        statement: StatementKind::ProcDecl {
+            name: match name.token {
+                TokenKind::Word(n) => n.into(),
+                _ => unreachable!(),
+            },
+            statements: block,
         },
-        statements: block,
+        loc: name.loc,
     })
 }
 
@@ -243,13 +246,15 @@ pub fn parse_proccall(lexer: &mut lexer_type!()) -> super::Result<Statement> {
     let name = lexer.next().unwrap().unwrap();
     let parameters = parse_procparams(name.loc.clone(), lexer)?;
 
-    Ok(Statement::ProcCall {
-        loc: name.loc,
-        name: match name.token {
-            TokenKind::Word(s) => s,
-            _ => unreachable!(),
+    Ok(Statement {
+        statement: StatementKind::ProcCall {
+            name: match name.token {
+                TokenKind::Word(s) => s,
+                _ => unreachable!(),
+            },
+            expressions: parameters,
         },
-        expressions: parameters,
+        loc: name.loc,
     })
 }
 
