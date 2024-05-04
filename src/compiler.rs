@@ -71,7 +71,7 @@ impl Compiler {
         let mut ir = Vec::new();
 
         match expression {
-            Expression { expression, loc: _ } => match expression {
+            Expression { expression, loc } => match expression {
                 ExpressionKind::Binary { kind, left, right } => {
                     for inst in self.compile_expression_impl(*left, level + 1)? {
                         ir.push(inst);
@@ -94,8 +94,7 @@ impl Compiler {
                 }
                 ExpressionKind::String(string) => {
                     if level != level {
-                        // TODO: reporting of the location
-                        eprintln!("ERROR: strings are not allowed in binary expressions");
+                        eprintln!("{loc}: ERROR: strings are not allowed in binary expressions");
                         return Err(());
                     }
                     ir.push(Ir::PushString(string));
@@ -150,7 +149,7 @@ impl Compiler {
                                 Datatype::Integer => ir.push(Ir::PrintInt),
                                 Datatype::String => ir.push(Ir::PrintString),
                                 Datatype::None => {
-                                    // TODO: Proper reporting of the location
+                                    let loc = &expressions[0].loc;
                                     eprintln!("{loc}: ERROR: procedure `{name}` expects `Integer` or `String`, but got `None`");
                                     return Err(());
                                 }
