@@ -93,7 +93,7 @@ impl Compiler {
                     ir.push(Ir::PushInt(i));
                 }
                 ExpressionKind::String(string) => {
-                    if level != level {
+                    if level != 0 {
                         eprintln!("{loc}: ERROR: strings are not allowed in binary expressions");
                         return Err(());
                     }
