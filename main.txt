@@ -1,3 +1,11 @@
+proc hi() {
+    print("hi");
+}
+
 proc main() {
+    print(10 + 10);
+
+    hi();
+
     print("Hello, world!");
 }

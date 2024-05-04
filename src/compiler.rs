@@ -1,15 +1,57 @@
-use std::fmt::Write;
+use std::collections::HashMap;
 
-use crate::parser::{Expression, Statement};
+use crate::parser::{Expression, Operator, Statement};
+
+#[derive(Debug, Clone)]
+pub struct Proc {
+    instructions: Vec<Ir>,
+}
+
+enum Datatype {
+    Integer,
+    String,
+    None,
+}
+
+#[derive(Debug, Clone)]
+pub enum Ir {
+    Proc(Proc),
+    PushInt(i64),
+    PushString(String),
+    ProcCall(String),
+    PrintInt,
+    PrintString,
+    Plus,
+    Minus,
+    Mult,
+    Div,
+    Mod,
+}
+
+impl Ir {
+    fn datatype(&self) -> Datatype {
+        match self {
+            Self::Proc(_) => Datatype::None,
+            Self::PushInt(_) => Datatype::Integer,
+            Self::PushString(_) => Datatype::String,
+            Self::ProcCall(_) => Datatype::None,
+            Self::PrintInt => Datatype::None,
+            Self::PrintString => Datatype::None,
+            Self::Plus => Datatype::Integer,
+            Self::Minus => Datatype::Integer,
+            Self::Mult => Datatype::Integer,
+            Self::Div => Datatype::Integer,
+            Self::Mod => Datatype::Integer,
+        }
+    }
+}
 
 #[derive(Default)]
 struct Scope {
-    procs: Vec<String>,
+    procs: HashMap<String, Proc>,
 }
 
 pub struct Compiler {
-    qbe_code: String,
-    strings: Vec<String>,
     scope: Vec<Scope>,
 }
 
@@ -18,95 +60,136 @@ impl Compiler {
         let mut scope = Vec::new();
         scope.push(Scope::default());
 
-        Self {
-            qbe_code: String::new(),
-            strings: Vec::new(),
-            scope,
+        Self { scope }
+    }
+
+    fn compile_expression_impl(
+        &mut self,
+        expression: Expression,
+        level: usize,
+    ) -> super::Result<Vec<Ir>> {
+        let mut ir = Vec::new();
+
+        match expression {
+            Expression::Binary { kind, left, right } => {
+                for inst in self.compile_expression_impl(*left, level + 1)? {
+                    ir.push(inst);
+                }
+
+                for inst in self.compile_expression_impl(*right, level + 1)? {
+                    ir.push(inst);
+                }
+
+                ir.push(match kind {
+                    Operator::Plus => Ir::Plus,
+                    Operator::Minus => Ir::Minus,
+                    Operator::Div => Ir::Div,
+                    Operator::Mult => Ir::Mult,
+                    Operator::Mod => Ir::Mod,
+                });
+            }
+            Expression::Integer(i) => {
+                ir.push(Ir::PushInt(i));
+            }
+            Expression::String(string) => {
+                if level != level {
+                    // TODO: reporting of the location
+                    eprintln!("ERROR: strings are not allowed in binary expressions");
+                    return Err(());
+                }
+                ir.push(Ir::PushString(string));
+            }
         }
+
+        Ok(ir)
     }
 
-    fn string(&mut self, string: String) -> String {
-        let s = format!("str_{}", self.strings.len());
-        self.strings.push(string);
-        return s;
+    fn compile_expression(&mut self, expression: Expression) -> super::Result<Vec<Ir>> {
+        self.compile_expression_impl(expression, 0)
     }
 
-    fn compile_statement(&mut self, statement: Statement) -> super::Result<()> {
+    fn compile_statement(&mut self, statement: Statement) -> super::Result<Vec<Ir>> {
+        let mut ir = Vec::new();
+
         match statement {
             Statement::ProcDecl {
                 loc: _,
                 name,
                 statements,
             } => {
-                self.scope.last_mut().unwrap().procs.push(name.clone());
-
-                let _ = writeln!(self.qbe_code, "function ${name}() {{");
-                let _ = writeln!(self.qbe_code, "@start");
-
-                for st in statements {
-                    self.compile_statement(st)?;
+                let mut instructions = Vec::new();
+                for statement in statements {
+                    for inst in self.compile_statement(statement)? {
+                        instructions.push(inst);
+                    }
                 }
 
-                let _ = writeln!(self.qbe_code, "ret");
-                let _ = writeln!(self.qbe_code, "}}");
+                let proc = Proc { instructions };
+                self.scope
+                    .last_mut()
+                    .unwrap()
+                    .procs
+                    .insert(name, proc.clone());
+
+                ir.push(Ir::Proc(proc));
             }
             Statement::ProcCall {
                 loc,
                 name,
                 expressions,
-            } => match name.as_str() {
-                "print" => {
-                    if expressions.len() != 1 {
-                        eprintln!(
-                            "{loc}: ERROR: incorrect amount of arguments for function `{name}`"
-                        );
-                        return Err(());
+            } => {
+                for expression in &expressions {
+                    for inst in self.compile_expression(expression.clone())? {
+                        ir.push(inst);
                     }
+                }
 
-                    let string = match &expressions[0] {
-                        Expression::String(string) => string,
-                        _ => {
-                            eprintln!("{loc}: ERROR: expressions are not allowed as parameters procedure parameters (for now)");
+                match name.as_str() {
+                    "print" => {
+                        if expressions.len() != 1 {
+                            eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
                             return Err(());
                         }
-                    };
 
-                    let string = self.string(string.clone());
-                    let _ = writeln!(
-                        self.qbe_code,
-                        "call $printf(l $print_fmt, ..., l ${string})",
-                    );
-                }
-                _ => {
-                    if !self.scope.last().unwrap().procs.contains(&name) {
-                        eprintln!("{loc}: ERROR: undefined function `{name}`");
-                        return Err(());
+                        match ir.last().unwrap().datatype() {
+                            Datatype::Integer => ir.push(Ir::PrintInt),
+                            Datatype::String => ir.push(Ir::PrintString),
+                            Datatype::None => {
+                                // TODO: Proper reporting of the location
+                                eprintln!("{loc}: ERROR: procedure `{name}` expects `Integer` or `String`, but got `None`");
+                                return Err(());
+                            }
+                        }
                     }
-                    let _ = writeln!(self.qbe_code, "call ${name}()");
+                    _ => {
+                        if !self.scope.last().unwrap().procs.contains_key(&name) {
+                            eprintln!("{loc}: ERROR: unknown procedure `{name}`");
+                            return Err(());
+                        }
+
+                        if expressions.len() != 0 {
+                            eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
+                            return Err(());
+                        }
+
+                        ir.push(Ir::ProcCall(name));
+                    }
                 }
-            },
+            }
         }
-        Ok(())
+
+        Ok(ir)
     }
 
-    pub fn compile_ast(&mut self, ast: Vec<Statement>) -> super::Result<String> {
+    pub fn compile_ast(&mut self, ast: Vec<Statement>) -> super::Result<Vec<Ir>> {
+        let mut ir = Vec::new();
+
         for st in ast {
-            self.compile_statement(st)?;
+            for inst in self.compile_statement(st)? {
+                ir.push(inst);
+            }
         }
 
-        let _ = writeln!(self.qbe_code, "export function w $_start() {{");
-        let _ = writeln!(self.qbe_code, "@start");
-        let _ = writeln!(self.qbe_code, "call $main()");
-        let _ = writeln!(self.qbe_code, "%exit_code =w copy 0");
-        let _ = writeln!(self.qbe_code, "call $exit(w %exit_code)");
-        let _ = writeln!(self.qbe_code, "ret 0");
-        let _ = writeln!(self.qbe_code, "}}");
-
-        for (i, string) in self.strings.iter().enumerate() {
-            let _ = writeln!(self.qbe_code, "data $str_{i} = {{ b \"{string}\", b 0 }}");
-        }
-        let _ = writeln!(self.qbe_code, "data $print_fmt = {{ b \"%s\\n\", b 0 }}");
-
-        Ok(self.qbe_code.clone())
+        Ok(ir)
     }
 }

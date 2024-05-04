@@ -27,7 +27,7 @@ fn start() -> Result<()> {
     }
 
     let mut compiler = Compiler::new();
-    println!("{}", compiler.compile_ast(ast)?);
+    println!("{:?}", compiler.compile_ast(ast)?);
 
     Ok(())
 }
