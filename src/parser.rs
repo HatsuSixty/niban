@@ -26,7 +26,7 @@ impl Operator {
 }
 
 #[derive(Debug, Clone)]
-pub enum Expression {
+pub enum ExpressionKind {
     Binary {
         kind: Operator,
         left: Box<Expression>,
@@ -34,6 +34,12 @@ pub enum Expression {
     },
     String(String),
     Integer(i64),
+}
+
+#[derive(Debug, Clone)]
+pub struct Expression {
+    pub expression: ExpressionKind,
+    pub loc: Location,
 }
 
 #[derive(Debug)]
@@ -363,12 +369,15 @@ fn parse_expression(
         };
         lexer.next();
 
-        let right = parse_expression(loc, lexer, precedence.higher())?;
+        let right = parse_expression(loc.clone(), lexer, precedence.higher())?;
 
-        left = Expression::Binary {
-            kind: operator,
-            left: Box::new(left.clone()),
-            right: Box::new(right),
+        left = Expression {
+            expression: ExpressionKind::Binary {
+                kind: operator,
+                left: Box::new(left.clone()),
+                right: Box::new(right),
+            },
+            loc,
         };
     }
 
@@ -387,8 +396,14 @@ pub fn parse_primary_expression(
     };
 
     match token.token {
-        TokenKind::String(string) => Ok(Expression::String(string)),
-        TokenKind::Integer(integer) => Ok(Expression::Integer(integer)),
+        TokenKind::String(string) => Ok(Expression {
+            expression: ExpressionKind::String(string),
+            loc,
+        }),
+        TokenKind::Integer(integer) => Ok(Expression {
+            expression: ExpressionKind::Integer(integer),
+            loc,
+        }),
         TokenKind::OpenParen => {
             let value = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest());
             expect_token("in expression", loc, lexer, TokenKind::CloseParen)?;

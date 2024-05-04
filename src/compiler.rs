@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::{Expression, Operator, Statement, StatementKind};
+use crate::parser::{Expression, ExpressionKind, Operator, Statement, StatementKind};
 
 #[derive(Debug, Clone)]
 pub struct Proc {
@@ -71,34 +71,36 @@ impl Compiler {
         let mut ir = Vec::new();
 
         match expression {
-            Expression::Binary { kind, left, right } => {
-                for inst in self.compile_expression_impl(*left, level + 1)? {
-                    ir.push(inst);
-                }
+            Expression { expression, loc: _ } => match expression {
+                ExpressionKind::Binary { kind, left, right } => {
+                    for inst in self.compile_expression_impl(*left, level + 1)? {
+                        ir.push(inst);
+                    }
 
-                for inst in self.compile_expression_impl(*right, level + 1)? {
-                    ir.push(inst);
-                }
+                    for inst in self.compile_expression_impl(*right, level + 1)? {
+                        ir.push(inst);
+                    }
 
-                ir.push(match kind {
-                    Operator::Plus => Ir::Plus,
-                    Operator::Minus => Ir::Minus,
-                    Operator::Div => Ir::Div,
-                    Operator::Mult => Ir::Mult,
-                    Operator::Mod => Ir::Mod,
-                });
-            }
-            Expression::Integer(i) => {
-                ir.push(Ir::PushInt(i));
-            }
-            Expression::String(string) => {
-                if level != level {
-                    // TODO: reporting of the location
-                    eprintln!("ERROR: strings are not allowed in binary expressions");
-                    return Err(());
+                    ir.push(match kind {
+                        Operator::Plus => Ir::Plus,
+                        Operator::Minus => Ir::Minus,
+                        Operator::Div => Ir::Div,
+                        Operator::Mult => Ir::Mult,
+                        Operator::Mod => Ir::Mod,
+                    });
                 }
-                ir.push(Ir::PushString(string));
-            }
+                ExpressionKind::Integer(i) => {
+                    ir.push(Ir::PushInt(i));
+                }
+                ExpressionKind::String(string) => {
+                    if level != level {
+                        // TODO: reporting of the location
+                        eprintln!("ERROR: strings are not allowed in binary expressions");
+                        return Err(());
+                    }
+                    ir.push(Ir::PushString(string));
+                }
+            },
         }
 
         Ok(ir)
