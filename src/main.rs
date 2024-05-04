@@ -5,10 +5,13 @@ use std::fs;
 mod parser;
 mod lexer;
 mod compiler;
+mod qbe_generator;
 
 use compiler::Compiler;
 use lexer::Lexer;
 use parser::parse_statement_toplevel;
+
+use crate::qbe_generator::QbeCompiler;
 
 type Result<T> = result::Result<T, ()>;
 
@@ -27,7 +30,10 @@ fn start() -> Result<()> {
     }
 
     let mut compiler = Compiler::new();
-    println!("{:?}", compiler.compile_ast(ast)?);
+    let mut generator = QbeCompiler::new();
+    let code = generator.compile(compiler.compile_ast(ast)?);
+
+    print!("{code}");
 
     Ok(())
 }

@@ -4,7 +4,8 @@ use crate::parser::{Expression, ExpressionKind, Operator, Statement, StatementKi
 
 #[derive(Debug, Clone)]
 pub struct Proc {
-    instructions: Vec<Ir>,
+    pub name: String,
+    pub instructions: Vec<Ir>,
 }
 
 enum Datatype {
@@ -122,7 +123,10 @@ impl Compiler {
                         }
                     }
 
-                    let proc = Proc { instructions };
+                    let proc = Proc {
+                        name: name.clone(),
+                        instructions,
+                    };
                     self.scope
                         .last_mut()
                         .unwrap()

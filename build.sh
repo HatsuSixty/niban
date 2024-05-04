@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -xe
+
 cargo run > main.ssa
 qbe main.ssa > main.s
 as main.s -o main.o
