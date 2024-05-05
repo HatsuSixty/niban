@@ -71,12 +71,12 @@ impl QbeCompiler {
                 }
                 Ir::PrintInt => {
                     let a = self.pop();
-                    let _ = writeln!(self.code, "call $printf(l $printf_int_fmt, ..., l %r{a})");
+                    let _ = writeln!(self.code, "call $print_unsigned(l %r{a})");
                     self.reset_registers();
                 }
                 Ir::PrintString => {
                     let a = self.pop();
-                    let _ = writeln!(self.code, "call $printf(l $printf_string_fmt, ..., l %r{a})");
+                    let _ = writeln!(self.code, "call $print_string(l %r{a})");
                     self.reset_registers();
                 }
                 Ir::Plus => {
@@ -122,9 +122,6 @@ impl QbeCompiler {
         let _ = writeln!(self.code, "call $exit(w 0)");
         let _ = writeln!(self.code, "ret");
         let _ = writeln!(self.code, "}}");
-
-        let _ = writeln!(self.code, "data $printf_string_fmt = {{ b \"%s\\n\", b 0 }}");
-        let _ = writeln!(self.code, "data $printf_int_fmt = {{ b \"%lld\\n\", b 0 }}");
 
         for (i, s) in self.strings.iter().enumerate() {
             let _ = writeln!(self.code, "data $str_{i} = {{ b \"{s}\", b 0 }}");
