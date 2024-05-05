@@ -71,36 +71,36 @@ impl Compiler {
     ) -> super::Result<Vec<Ir>> {
         let mut ir = Vec::new();
 
+        let Expression { expression, loc } = expression;
+
         match expression {
-            Expression { expression, loc } => match expression {
-                ExpressionKind::Binary { kind, left, right } => {
-                    for inst in self.compile_expression_impl(*left, level + 1)? {
-                        ir.push(inst);
-                    }
+            ExpressionKind::Binary { kind, left, right } => {
+                for inst in self.compile_expression_impl(*left, level + 1)? {
+                    ir.push(inst);
+                }
 
-                    for inst in self.compile_expression_impl(*right, level + 1)? {
-                        ir.push(inst);
-                    }
+                for inst in self.compile_expression_impl(*right, level + 1)? {
+                    ir.push(inst);
+                }
 
-                    ir.push(match kind {
-                        Operator::Plus => Ir::Plus,
-                        Operator::Minus => Ir::Minus,
-                        Operator::Div => Ir::Div,
-                        Operator::Mult => Ir::Mult,
-                        Operator::Mod => Ir::Mod,
-                    });
+                ir.push(match kind {
+                    Operator::Plus => Ir::Plus,
+                    Operator::Minus => Ir::Minus,
+                    Operator::Div => Ir::Div,
+                    Operator::Mult => Ir::Mult,
+                    Operator::Mod => Ir::Mod,
+                });
+            }
+            ExpressionKind::Integer(i) => {
+                ir.push(Ir::PushInt(i));
+            }
+            ExpressionKind::String(string) => {
+                if level != 0 {
+                    eprintln!("{loc}: ERROR: strings are not allowed in binary expressions");
+                    return Err(());
                 }
-                ExpressionKind::Integer(i) => {
-                    ir.push(Ir::PushInt(i));
-                }
-                ExpressionKind::String(string) => {
-                    if level != 0 {
-                        eprintln!("{loc}: ERROR: strings are not allowed in binary expressions");
-                        return Err(());
-                    }
-                    ir.push(Ir::PushString(string));
-                }
-            },
+                ir.push(Ir::PushString(string));
+            }
         }
 
         Ok(ir)
@@ -113,68 +113,68 @@ impl Compiler {
     fn compile_statement(&mut self, statement: Statement) -> super::Result<Vec<Ir>> {
         let mut ir = Vec::new();
 
+        let Statement { statement, loc } = statement;
+
         match statement {
-            Statement { statement, loc } => match statement {
-                StatementKind::ProcDecl { name, statements } => {
-                    let mut instructions = Vec::new();
-                    for statement in statements {
-                        for inst in self.compile_statement(statement)? {
-                            instructions.push(inst);
-                        }
-                    }
-
-                    let proc = Proc {
-                        name: name.clone(),
-                        instructions,
-                    };
-                    self.scope
-                        .last_mut()
-                        .unwrap()
-                        .procs
-                        .insert(name, proc.clone());
-
-                    ir.push(Ir::Proc(proc));
-                }
-                StatementKind::ProcCall { name, expressions } => {
-                    for expression in &expressions {
-                        for inst in self.compile_expression(expression.clone())? {
-                            ir.push(inst);
-                        }
-                    }
-
-                    match name.as_str() {
-                        "print" => {
-                            if expressions.len() != 1 {
-                                eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
-                                return Err(());
-                            }
-
-                            match ir.last().unwrap().datatype() {
-                                Datatype::Integer => ir.push(Ir::PrintInt),
-                                Datatype::String => ir.push(Ir::PrintString),
-                                Datatype::None => {
-                                    let loc = &expressions[0].loc;
-                                    eprintln!("{loc}: ERROR: procedure `{name}` expects `Integer` or `String`, but got `None`");
-                                    return Err(());
-                                }
-                            }
-                        }
-                        _ => {
-                            if !self.scope.last().unwrap().procs.contains_key(&name) {
-                                eprintln!("{loc}: ERROR: unknown procedure `{name}`");
-                                return Err(());
-                            }
-
-                            if expressions.len() != 0 {
-                                eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
-                                return Err(());
-                            }
-
-                            ir.push(Ir::ProcCall(name));
-                        }
+            StatementKind::ProcDecl { name, statements } => {
+                let mut instructions = Vec::new();
+                for statement in statements {
+                    for inst in self.compile_statement(statement)? {
+                        instructions.push(inst);
                     }
                 }
-            },
+
+                let proc = Proc {
+                    name: name.clone(),
+                    instructions,
+                };
+                self.scope
+                    .last_mut()
+                    .unwrap()
+                    .procs
+                    .insert(name, proc.clone());
+
+                ir.push(Ir::Proc(proc));
+            }
+            StatementKind::ProcCall { name, expressions } => {
+                for expression in &expressions {
+                    for inst in self.compile_expression(expression.clone())? {
+                        ir.push(inst);
+                    }
+                }
+
+                match name.as_str() {
+                    "print" => {
+                        if expressions.len() != 1 {
+                            eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
+                            return Err(());
+                        }
+
+                        match ir.last().unwrap().datatype() {
+                            Datatype::Integer => ir.push(Ir::PrintInt),
+                            Datatype::String => ir.push(Ir::PrintString),
+                            Datatype::None => {
+                                let loc = &expressions[0].loc;
+                                eprintln!("{loc}: ERROR: procedure `{name}` expects `Integer` or `String`, but got `None`");
+                                return Err(());
+                            }
+                        }
+                    }
+                    _ => {
+                        if !self.scope.last().unwrap().procs.contains_key(&name) {
+                            eprintln!("{loc}: ERROR: unknown procedure `{name}`");
+                            return Err(());
+                        }
+
+                        if expressions.len() != 0 {
+                            eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
+                            return Err(());
+                        }
+
+                        ir.push(Ir::ProcCall(name));
+                    }
+                }
+            }
         }
 
         Ok(ir)
