@@ -1,6 +1,7 @@
 format ELF64
 section '.text' executable
 
+;; Enable for including a main function
 TESTING = 0
 
 public strlen
@@ -102,7 +103,9 @@ if TESTING
 end if
 
 section '.data' writeable
-hello_world_text: db "Hello, World", 0
+if TESTING
+    hello_world_text: db "Hello, World", 0
+end if
 new_line: db 10
 
 section '.note.GNU-stack'
