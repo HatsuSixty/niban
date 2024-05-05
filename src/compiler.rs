@@ -8,10 +8,10 @@ pub struct Proc {
     pub instructions: Vec<Ir>,
 }
 
+#[derive(Debug, PartialEq)]
 enum Datatype {
     Integer,
     String,
-    None,
 }
 
 #[derive(Debug, Clone)]
@@ -27,24 +27,6 @@ pub enum Ir {
     Mult,
     Div,
     Mod,
-}
-
-impl Ir {
-    fn datatype(&self) -> Datatype {
-        match self {
-            Self::Proc(_) => Datatype::None,
-            Self::PushInt(_) => Datatype::Integer,
-            Self::PushString(_) => Datatype::String,
-            Self::ProcCall(_) => Datatype::None,
-            Self::PrintInt => Datatype::None,
-            Self::PrintString => Datatype::None,
-            Self::Plus => Datatype::Integer,
-            Self::Minus => Datatype::Integer,
-            Self::Mult => Datatype::Integer,
-            Self::Div => Datatype::Integer,
-            Self::Mod => Datatype::Integer,
-        }
-    }
 }
 
 #[derive(Default)]
@@ -68,18 +50,21 @@ impl Compiler {
         &mut self,
         expression: Expression,
         level: usize,
-    ) -> super::Result<Vec<Ir>> {
+    ) -> super::Result<(Vec<Ir>, Datatype)> {
         let mut ir = Vec::new();
 
         let Expression { expression, loc } = expression;
+        let datatype;
 
         match expression {
             ExpressionKind::Binary { kind, left, right } => {
-                for inst in self.compile_expression_impl(*left, level + 1)? {
+                let (left_ir, left_datatype) = self.compile_expression_impl(*left, level + 1)?;
+                for inst in left_ir {
                     ir.push(inst);
                 }
 
-                for inst in self.compile_expression_impl(*right, level + 1)? {
+                let (right_ir, right_datatype) = self.compile_expression_impl(*right, level + 1)?;
+                for inst in right_ir {
                     ir.push(inst);
                 }
 
@@ -90,9 +75,17 @@ impl Compiler {
                     Operator::Mult => Ir::Mult,
                     Operator::Mod => Ir::Mod,
                 });
+
+                datatype =
+                    if left_datatype == Datatype::String || right_datatype == Datatype::String {
+                        Datatype::String
+                    } else {
+                        left_datatype
+                    };
             }
             ExpressionKind::Integer(i) => {
                 ir.push(Ir::PushInt(i));
+                datatype = Datatype::Integer;
             }
             ExpressionKind::String(string) => {
                 if level != 0 {
@@ -100,13 +93,14 @@ impl Compiler {
                     return Err(());
                 }
                 ir.push(Ir::PushString(string));
+                datatype = Datatype::String;
             }
         }
 
-        Ok(ir)
+        Ok((ir, datatype))
     }
 
-    fn compile_expression(&mut self, expression: Expression) -> super::Result<Vec<Ir>> {
+    fn compile_expression(&mut self, expression: Expression) -> super::Result<(Vec<Ir>, Datatype)> {
         self.compile_expression_impl(expression, 0)
     }
 
@@ -137,8 +131,12 @@ impl Compiler {
                 ir.push(Ir::Proc(proc));
             }
             StatementKind::ProcCall { name, expressions } => {
+                let mut datatypes = Vec::new();
+
                 for expression in &expressions {
-                    for inst in self.compile_expression(expression.clone())? {
+                    let (expr_ir, datatype) = self.compile_expression(expression.clone())?;
+                    datatypes.push(datatype);
+                    for inst in expr_ir {
                         ir.push(inst);
                     }
                 }
@@ -150,14 +148,9 @@ impl Compiler {
                             return Err(());
                         }
 
-                        match ir.last().unwrap().datatype() {
+                        match &datatypes[0] {
                             Datatype::Integer => ir.push(Ir::PrintInt),
                             Datatype::String => ir.push(Ir::PrintString),
-                            Datatype::None => {
-                                let loc = &expressions[0].loc;
-                                eprintln!("{loc}: ERROR: procedure `{name}` expects `Integer` or `String`, but got `None`");
-                                return Err(());
-                            }
                         }
                     }
                     _ => {
