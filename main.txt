@@ -1,11 +1,12 @@
-proc hi() {
-    print("hi");
+proc arithmetics() {
+    print(34 + 35);
+    print(1000 / 2 - 80);
+    print(35 * 2 - 1);
+    print(500 - (7050 % 6969 - 1));
 }
 
 proc main() {
-    print(10 + 10);
-
-    hi();
-
     print("Hello, world!");
+
+    arithmetics();
 }
