@@ -84,30 +84,35 @@ impl QbeCompiler {
                     let b = self.pop();
                     let r = self.push();
                     let _ = writeln!(self.code, "%s{r} =l add %r{a}, %r{b}");
+                    self.reset_registers();
                 }
                 Ir::Minus => {
                     let b = self.pop();
                     let a = self.pop();
                     let r = self.push();
                     let _ = writeln!(self.code, "%s{r} =l sub %r{a}, %r{b}");
+                    self.reset_registers();
                 }
                 Ir::Mult => {
                     let b = self.pop();
                     let a = self.pop();
                     let r = self.push();
                     let _ = writeln!(self.code, "%s{r} =l mul %r{a}, %r{b}");
+                    self.reset_registers();
                 }
                 Ir::Div => {
                     let b = self.pop();
                     let a = self.pop();
                     let r = self.push();
                     let _ = writeln!(self.code, "%s{r} =l div %r{a}, %r{b}");
+                    self.reset_registers();
                 }
                 Ir::Mod => {
                     let b = self.pop();
                     let a = self.pop();
                     let r = self.push();
                     let _ = writeln!(self.code, "%s{r} =l rem %r{a}, %r{b}");
+                    self.reset_registers();
                 }
             }
         }
