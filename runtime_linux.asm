@@ -1,7 +1,7 @@
 format ELF64
 section '.text' executable
 
-;; Enable for including a main function
+;; Enable to include a main function
 TESTING = 0
 
 public strlen
