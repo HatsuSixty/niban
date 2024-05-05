@@ -16,7 +16,7 @@ use crate::qbe_generator::QbeCompiler;
 type Result<T> = result::Result<T, ()>;
 
 fn start() -> Result<()> {
-    let file_path = "main.txt";
+    let file_path = "test_program.niban";
 
     let source_code = fs::read_to_string(file_path).map_err(|e| {
         eprintln!("ERROR: could not open file `{file_path}`: {e}");

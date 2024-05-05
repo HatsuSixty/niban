@@ -1,6 +1,6 @@
 /target
 *~
-main*
-!main.txt
+test_program*
+!test_program.niban
 runtime_linux*
 !runtime_linux.asm
