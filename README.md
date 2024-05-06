@@ -16,7 +16,8 @@ The compiler is written in Rust, so you can use `cargo` for building:
 ```console
 $ cargo build
 ```
-For building the test program `main.txt`, run `./build.sh`:
+For building and running the test program `test_program.niban`, run the following commands:
 ```console
-$ ./build.sh
+$ cargo run test_program.niban
+$ ./test_program
 ```
