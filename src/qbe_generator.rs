@@ -118,15 +118,17 @@ impl QbeCompiler {
         }
     }
 
-    pub fn compile(&mut self, ir: Vec<Ir>) -> String {
+    pub fn compile(&mut self, ir: Vec<Ir>, library: bool) -> String {
         self.compile_ir_to_qbe(ir);
 
-        let _ = writeln!(self.code, "export function $_start() {{");
-        let _ = writeln!(self.code, "@start");
-        let _ = writeln!(self.code, "call $main()");
-        let _ = writeln!(self.code, "call $exit(w 0)");
-        let _ = writeln!(self.code, "ret");
-        let _ = writeln!(self.code, "}}");
+        if !library {
+            let _ = writeln!(self.code, "export function $_start() {{");
+            let _ = writeln!(self.code, "@start");
+            let _ = writeln!(self.code, "call $main()");
+            let _ = writeln!(self.code, "call $exit(w 0)");
+            let _ = writeln!(self.code, "ret");
+            let _ = writeln!(self.code, "}}");
+        }
 
         for (i, s) in self.strings.iter().enumerate() {
             let _ = writeln!(self.code, "data $str_{i} = {{ b \"{s}\", b 0 }}");
