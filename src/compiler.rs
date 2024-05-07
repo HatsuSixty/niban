@@ -168,6 +168,10 @@ impl Compiler {
                     }
                 }
             }
+            StatementKind::Let { name: _name, expression } => {
+                println!("{expression:?}");
+                todo!();
+            }
         }
 
         Ok(ir)

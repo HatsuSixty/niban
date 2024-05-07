@@ -52,6 +52,10 @@ pub enum StatementKind {
         name: String,
         expressions: Vec<Expression>,
     },
+    Let {
+        name: String,
+        expression: Expression,
+    },
 }
 
 #[derive(Debug)]
@@ -264,6 +268,29 @@ pub fn parse_proccall(lexer: &mut lexer_type!()) -> super::Result<Statement> {
     })
 }
 
+pub fn parse_let(lexer: &mut lexer_type!()) -> super::Result<Statement> {
+    let lett = lexer.next().unwrap().unwrap();
+
+    let name = expect_token(
+        "in variable definition",
+        lett.loc.clone(),
+        lexer,
+        TokenKind::Word("".into()),
+    )?;
+
+    expect_token("in variable definition", lett.loc.clone(), lexer, TokenKind::Equal)?;
+
+    let expr = parse_expression(lett.loc.clone(), lexer, OperatorPrecedence::lowest())?;
+
+    Ok(Statement {
+        loc: lett.loc,
+        statement: StatementKind::Let {
+            name: name.to_string(),
+            expression: expr,
+        },
+    })
+}
+
 pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statement>> {
     let token = if let Some(tok) = peek_token(lexer)? {
         tok
@@ -283,6 +310,7 @@ pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statem
                 return Err(());
                 // statement = parse_proc(lexer)?;
             }
+            Keyword::Let => statement = parse_let(lexer)?,
         },
         TokenKind::Word(_) => statement = parse_proccall(lexer)?,
         _ => {
@@ -304,6 +332,7 @@ pub fn parse_statement_toplevel(lexer: &mut lexer_type!()) -> super::Result<Opti
     match token.token {
         TokenKind::Keyword(keyword) => match keyword {
             Keyword::Proc => Ok(Some(parse_proc(lexer)?)),
+            Keyword::Let => Ok(Some(parse_let(lexer)?)),
         },
         _ => {
             eprintln!(

@@ -6,6 +6,8 @@ proc arithmetics() {
 }
 
 proc main() {
+    let x = 2 + 2;
+
     print("Hello, world!");
 
     arithmetics();

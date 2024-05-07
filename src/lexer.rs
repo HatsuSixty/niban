@@ -14,12 +14,14 @@ fn is_special_character(c: char) -> bool {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     Proc,
+    Let,
 }
 
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Proc => write!(f, "proc"),
+            Self::Let => write!(f, "let"),
         }
     }
 }
@@ -28,6 +30,7 @@ impl Keyword {
     fn from_string(text: &str) -> Option<Self> {
         match text {
             "proc" => Some(Self::Proc),
+            "let" => Some(Self::Let),
             _ => None,
         }
     }
@@ -39,12 +42,16 @@ pub enum TokenKind {
     String(String),
     Word(String),
     Integer(i64),
+
     OpenParen,
     CloseParen,
     OpenBrace,
     CloseBrace,
+
     Semicolon,
     Comma,
+    Equal,
+
     Plus,
     Minus,
     Div,
@@ -107,6 +114,7 @@ impl Token {
             '/' => kind = Some(TokenKind::Div),
             '*' => kind = Some(TokenKind::Mult),
             '%' => kind = Some(TokenKind::Mod),
+            '=' => kind = Some(TokenKind::Equal),
             _ => kind = None,
         }
 
