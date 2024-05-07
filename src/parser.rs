@@ -275,7 +275,14 @@ pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statem
 
     match token.token {
         TokenKind::Keyword(keyword) => match keyword {
-            Keyword::Proc => statement = parse_proc(lexer)?,
+            Keyword::Proc => {
+                eprintln!(
+                    "{}: ERROR: procedure definitions are only allowed as toplevel statements",
+                    token.loc
+                );
+                return Err(());
+                // statement = parse_proc(lexer)?;
+            }
         },
         TokenKind::Word(_) => statement = parse_proccall(lexer)?,
         _ => {
