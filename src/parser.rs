@@ -55,6 +55,7 @@ pub enum StatementKind {
     },
     Let {
         name: String,
+        datatype: String,
         expression: Box<Expression>,
     },
     GetVar {
@@ -281,6 +282,20 @@ pub fn parse_let(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Stat
         "in variable definition",
         loc.clone(),
         lexer,
+        TokenKind::Colon,
+    )?;
+
+    let datatype = expect_token(
+        "in variable definition",
+        loc.clone(),
+        lexer,
+        TokenKind::Word("".into()),
+    )?;
+
+    expect_token(
+        "in variable definition",
+        loc.clone(),
+        lexer,
         TokenKind::Equal,
     )?;
 
@@ -289,7 +304,14 @@ pub fn parse_let(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Stat
     Ok(Statement {
         loc,
         statement: StatementKind::Let {
-            name: name.to_string(),
+            name: match name.token {
+                TokenKind::Word(name) => name,
+                _ => unreachable!(),
+            },
+            datatype: match datatype.token {
+                TokenKind::Word(tp) => tp,
+                _ => unreachable!(),
+            },
             expression: Box::new(expr),
         },
     })

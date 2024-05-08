@@ -6,9 +6,13 @@ proc arithmetics() {
 }
 
 proc main() {
-    let x = 2 + 2;
+    let y: Integer = 10;
+    let x: Integer = y;
 
-    print("Hello, world!");
+    print(x + 50);
+
+    let hello: String = "Hello, World";
+    print(hello);
 
     arithmetics();
 }

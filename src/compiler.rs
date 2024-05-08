@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::lexer::Location;
 use crate::parser::{Expression, ExpressionKind, Operator, Statement, StatementKind};
 
 #[derive(Debug, Clone)]
@@ -8,10 +9,26 @@ pub struct Proc {
     pub instructions: Vec<Ir>,
 }
 
-#[derive(Debug, PartialEq)]
-enum Datatype {
+#[derive(Debug, Clone)]
+pub struct Variable {
+    pub name: String,
+    pub datatype: Datatype,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Datatype {
     Integer,
     String,
+}
+
+impl Datatype {
+    fn from_string(string: String) -> Option<Self> {
+        match string.as_str() {
+            "Integer" => Some(Self::Integer),
+            "String" => Some(Self::String),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -19,9 +36,17 @@ pub enum Ir {
     Proc(Proc),
     PushInt(i64),
     PushString(String),
+
+    GlobalVar(String, Datatype),
+    LocalVar(String, Datatype),
+    GetVar(String),
+    SetVar(String),
+
     ProcCall(String),
+
     PrintInt,
     PrintString,
+
     Plus,
     Minus,
     Mult,
@@ -29,9 +54,10 @@ pub enum Ir {
     Mod,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct Scope {
     procs: HashMap<String, Proc>,
+    variables: HashMap<String, Variable>,
 }
 
 pub struct Compiler {
@@ -44,6 +70,26 @@ impl Compiler {
         scope.push(Scope::default());
 
         Self { scope }
+    }
+
+    fn find_variable(&self, loc: Location, name: String) -> super::Result<Variable> {
+        for scope in self.scope.iter().rev() {
+            if let Some(variable) = scope.variables.get(&name) {
+                return Ok(variable.clone());
+            }
+        }
+        eprintln!("{loc}: ERROR: unknown variable `{name}`");
+        Err(())
+    }
+
+    fn find_procedure(&self, loc: Location, name: String) -> super::Result<Proc> {
+        for scope in self.scope.iter().rev() {
+            if let Some(variable) = scope.procs.get(&name) {
+                return Ok(variable.clone());
+            }
+        }
+        eprintln!("{loc}: ERROR: unknown procedure `{name}`");
+        Err(())
     }
 
     fn compile_expression_impl(
@@ -95,7 +141,21 @@ impl Compiler {
                 ir.push(Ir::PushString(string));
                 datatype = Datatype::String;
             }
-            ExpressionKind::Statement(_statement) => todo!(),
+            ExpressionKind::Statement(statement) => {
+                for inst in self.compile_statement(statement.clone())? {
+                    ir.push(inst);
+                }
+                match statement.statement {
+                    StatementKind::GetVar { name } => {
+                        let var = self.find_variable(loc, name)?;
+                        datatype = var.datatype;
+                    }
+                    _ => {
+                        eprintln!("{loc}: ERROR: unexpected statement in expression");
+                        return Err(());
+                    }
+                }
+            }
         }
 
         Ok((ir, datatype))
@@ -112,12 +172,16 @@ impl Compiler {
 
         match statement {
             StatementKind::ProcDecl { name, statements } => {
+                self.scope.push(Scope::default());
+
                 let mut instructions = Vec::new();
                 for statement in statements {
                     for inst in self.compile_statement(statement)? {
                         instructions.push(inst);
                     }
                 }
+
+                self.scope.pop().unwrap();
 
                 let proc = Proc {
                     name: name.clone(),
@@ -155,10 +219,7 @@ impl Compiler {
                         }
                     }
                     _ => {
-                        if !self.scope.last().unwrap().procs.contains_key(&name) {
-                            eprintln!("{loc}: ERROR: unknown procedure `{name}`");
-                            return Err(());
-                        }
+                        self.find_procedure(loc.clone(), name.clone())?;
 
                         if expressions.len() != 0 {
                             eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
@@ -169,12 +230,49 @@ impl Compiler {
                     }
                 }
             }
-            StatementKind::Let { name: _name, expression } => {
-                println!("{expression:?}");
-                todo!();
+            StatementKind::Let {
+                name,
+                expression,
+                datatype,
+            } => {
+                let datatype = if let Some(datatype) = Datatype::from_string(datatype.clone()) {
+                    datatype
+                } else {
+                    eprintln!("{loc}: ERROR: unknown type `{datatype}`");
+                    return Err(());
+                };
+
+                if self.scope.len() == 1 {
+                    ir.push(Ir::GlobalVar(name.clone(), datatype.clone()));
+                } else {
+                    ir.push(Ir::LocalVar(name.clone(), datatype.clone()));
+                }
+
+                let (expr_ir, expr_datatype) = self.compile_expression(*expression)?;
+                for inst in expr_ir {
+                    ir.push(inst);
+                }
+
+                ir.push(Ir::SetVar(name.clone()));
+
+                if expr_datatype != datatype {
+                    eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`");
+                    return Err(());
+                }
+
+                let var = Variable {
+                    name: name.clone(),
+                    datatype,
+                };
+                self.scope
+                    .last_mut()
+                    .unwrap()
+                    .variables
+                    .insert(name, var);
             }
-            StatementKind::GetVar { name: _name } => {
-                todo!("Get variable");
+            StatementKind::GetVar { name } => {
+                self.find_variable(loc, name.clone())?;
+                ir.push(Ir::GetVar(name));
             }
         }
 

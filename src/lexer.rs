@@ -48,6 +48,7 @@ pub enum TokenKind {
     OpenBrace,
     CloseBrace,
 
+    Colon,
     Semicolon,
     Comma,
     Equal,
@@ -115,6 +116,7 @@ impl Token {
             '*' => kind = Some(TokenKind::Mult),
             '%' => kind = Some(TokenKind::Mod),
             '=' => kind = Some(TokenKind::Equal),
+            ':' => kind = Some(TokenKind::Colon),
             _ => kind = None,
         }
 
