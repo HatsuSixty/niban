@@ -264,11 +264,7 @@ impl Compiler {
                     name: name.clone(),
                     datatype,
                 };
-                self.scope
-                    .last_mut()
-                    .unwrap()
-                    .variables
-                    .insert(name, var);
+                self.scope.last_mut().unwrap().variables.insert(name, var);
             }
             StatementKind::GetVar { name } => {
                 self.find_variable(loc, name.clone())?;
