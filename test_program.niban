@@ -1,9 +1,17 @@
 proc arithmetics() {
+    print("==============================");
+    print("Testing arithmetics:");
+
     print(34 + 35);
     print(1000 / 2 - 80);
     print(35 * 2 - 1);
     print(500 - (7050 % 6969 - 1));
+
+    print("==============================");
 }
+
+let hello: String = "Hello, World"
+let another_string: String = "Olá, mundo!"
 
 proc main() {
     let y: Integer = 10;
@@ -11,8 +19,8 @@ proc main() {
 
     print(x + 50);
 
-    let hello: String = "Hello, World";
     print(hello);
+    print(another_string);
 
     arithmetics();
 }

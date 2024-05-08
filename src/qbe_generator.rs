@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::compiler::Ir;
 use crate::compiler::Proc;
+use crate::compiler::Value;
 
 pub struct QbeCompiler {
     stack: usize,
@@ -10,7 +12,7 @@ pub struct QbeCompiler {
     strings: Vec<String>,
 
     variables: Vec<String>,
-    global_variables: Vec<String>,
+    global_variables: HashMap<String, Value>,
 }
 
 impl QbeCompiler {
@@ -21,7 +23,7 @@ impl QbeCompiler {
             code: String::new(),
             strings: Vec::new(),
             variables: Vec::new(),
-            global_variables: Vec::new(),
+            global_variables: HashMap::new(),
         }
     }
 
@@ -33,7 +35,12 @@ impl QbeCompiler {
 
     fn pop(&mut self) -> usize {
         self.stack -= 1;
-        let _ = writeln!(self.code, "%r{r} =l copy %s{s}", r = self.register_stack, s = self.stack);
+        let _ = writeln!(
+            self.code,
+            "%r{r} =l copy %s{s}",
+            r = self.register_stack,
+            s = self.stack
+        );
         self.register_stack += 1;
         return self.register_stack - 1;
     }
@@ -124,7 +131,7 @@ impl QbeCompiler {
                     let r = self.push();
                     if self.variables.contains(&name) {
                         let _ = writeln!(self.code, "%s{r} =l loadl %niban_variable_{name}");
-                    } else if self.global_variables.contains(&name) {
+                    } else if self.global_variables.contains_key(&name) {
                         let _ = writeln!(self.code, "%s{r} =l loadl $niban_variable_{name}");
                     } else {
                         unreachable!();
@@ -134,14 +141,18 @@ impl QbeCompiler {
                     let a = self.pop();
                     if self.variables.contains(&name) {
                         let _ = writeln!(self.code, "storel %r{a}, %niban_variable_{name}");
-                    } else if self.global_variables.contains(&name) {
+                    } else if self.global_variables.contains_key(&name) {
                         let _ = writeln!(self.code, "storel %r{a}, $niban_variable_{name}");
                     } else {
                         unreachable!();
                     }
                 }
-                Ir::GlobalVar(name, _) => {
-                    self.global_variables.push(name);
+                Ir::GlobalVar {
+                    name,
+                    datatype: _,
+                    initial_value,
+                } => {
+                    self.global_variables.insert(name, initial_value);
                 }
                 Ir::LocalVar(name, _) => {
                     self.variables.push(name.clone());
@@ -163,12 +174,33 @@ impl QbeCompiler {
             let _ = writeln!(self.code, "}}");
         }
 
-        for (i, s) in self.strings.iter().enumerate() {
-            let _ = writeln!(self.code, "data $str_{i} = {{ b \"{s}\", b 0 }}");
+        let mut global_strings = Vec::new();
+        for (var, value) in &self.global_variables {
+            let _ = write!(self.code, "data $niban_variable_{var} = {{ ");
+            match value {
+                Value::Integer(i) => {
+                    let bytes = i.to_le_bytes();
+                    for (i, byte) in bytes.iter().enumerate() {
+                        let _ = write!(self.code, "b {byte}");
+                        if i != bytes.len() - 1 {
+                            let _ = write!(self.code, ", ");
+                        }
+                    }
+                }
+                Value::String(string) => {
+                    let _ = write!(self.code, "l $str_{}", self.strings.len() + global_strings.len());
+                    global_strings.push(string);
+                }
+            }
+            let _ = writeln!(self.code, " }}");
         }
 
-        for var in self.global_variables.iter() {
-            let _ = writeln!(self.code, "data $niban_variable_{var} = {{ z 8 }}");
+        for s in global_strings.iter() {
+            self.strings.push(s.to_string());
+        }
+
+        for (i, s) in self.strings.iter().enumerate() {
+            let _ = writeln!(self.code, "data $str_{i} = {{ b \"{s}\", b 0 }}");
         }
 
         self.code.clone()

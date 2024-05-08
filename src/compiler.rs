@@ -32,12 +32,22 @@ impl Datatype {
 }
 
 #[derive(Debug, Clone)]
+pub enum Value {
+    Integer(i64),
+    String(String),
+}
+
+#[derive(Debug, Clone)]
 pub enum Ir {
     Proc(Proc),
     PushInt(i64),
     PushString(String),
 
-    GlobalVar(String, Datatype),
+    GlobalVar {
+        name: String,
+        datatype: Datatype,
+        initial_value: Value,
+    },
     LocalVar(String, Datatype),
     GetVar(String),
     SetVar(String),
@@ -242,18 +252,43 @@ impl Compiler {
                     return Err(());
                 };
 
+                let (expr_ir, expr_datatype) = self.compile_expression(*expression.clone())?;
+
                 if self.scope.len() == 1 {
-                    ir.push(Ir::GlobalVar(name.clone(), datatype.clone()));
+                    // Global variable
+                    let Expression {
+                        expression: expr,
+                        loc: expr_loc,
+                    } = *expression;
+
+                    let value;
+
+                    match expr {
+                        ExpressionKind::Integer(i) => value = Value::Integer(i),
+                        ExpressionKind::String(s) => value = Value::String(s),
+                        _ => {
+                            eprintln!(
+                                "{expr_loc}: ERROR: expression cannot be executed at compile time"
+                            );
+                            return Err(());
+                        }
+                    }
+
+                    ir.push(Ir::GlobalVar {
+                        name: name.clone(),
+                        datatype: datatype.clone(),
+                        initial_value: value,
+                    });
                 } else {
+                    // Local variable
                     ir.push(Ir::LocalVar(name.clone(), datatype.clone()));
-                }
 
-                let (expr_ir, expr_datatype) = self.compile_expression(*expression)?;
-                for inst in expr_ir {
-                    ir.push(inst);
-                }
+                    for inst in expr_ir {
+                        ir.push(inst);
+                    }
 
-                ir.push(Ir::SetVar(name.clone()));
+                    ir.push(Ir::SetVar(name.clone()));
+                }
 
                 if expr_datatype != datatype {
                     eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`");
