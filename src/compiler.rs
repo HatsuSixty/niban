@@ -95,6 +95,7 @@ impl Compiler {
                 ir.push(Ir::PushString(string));
                 datatype = Datatype::String;
             }
+            ExpressionKind::Statement(_statement) => todo!(),
         }
 
         Ok((ir, datatype))

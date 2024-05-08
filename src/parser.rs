@@ -34,6 +34,7 @@ pub enum ExpressionKind {
     },
     String(String),
     Integer(i64),
+    Statement(Statement),
 }
 
 #[derive(Debug, Clone)]
@@ -42,7 +43,7 @@ pub struct Expression {
     pub loc: Location,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StatementKind {
     ProcDecl {
         name: String,
@@ -54,14 +55,14 @@ pub enum StatementKind {
     },
     Let {
         name: String,
-        expression: Expression,
+        expression: Box<Expression>,
     },
     GetVar {
         name: String,
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Statement {
     pub loc: Location,
     pub statement: StatementKind,
@@ -289,7 +290,7 @@ pub fn parse_let(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Stat
         loc,
         statement: StatementKind::Let {
             name: name.to_string(),
-            expression: expr,
+            expression: Box::new(expr),
         },
     })
 }
@@ -450,7 +451,7 @@ pub fn parse_primary_expression(
     loc: Location,
     lexer: &mut lexer_type!(),
 ) -> super::Result<Expression> {
-    let token = if let Some(tok) = next_token(lexer)? {
+    let token = if let Some(tok) = peek_token(lexer)? {
         tok
     } else {
         eprintln!("{loc}: ERROR: reached end of file while parsing expression");
@@ -458,18 +459,44 @@ pub fn parse_primary_expression(
     };
 
     match token.token {
-        TokenKind::String(string) => Ok(Expression {
-            expression: ExpressionKind::String(string),
-            loc: token.loc,
-        }),
-        TokenKind::Integer(integer) => Ok(Expression {
-            expression: ExpressionKind::Integer(integer),
-            loc: token.loc,
-        }),
+        TokenKind::String(string) => {
+            lexer.next();
+
+            Ok(Expression {
+                expression: ExpressionKind::String(string),
+                loc: token.loc,
+            })
+        }
+        TokenKind::Integer(integer) => {
+            lexer.next();
+
+            Ok(Expression {
+                expression: ExpressionKind::Integer(integer),
+                loc: token.loc,
+            })
+        }
         TokenKind::OpenParen => {
+            lexer.next();
+
             let value = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest());
             expect_token("in expression", token.loc, lexer, TokenKind::CloseParen)?;
             value
+        }
+        TokenKind::Word(_) => {
+            let statement = if let Some(stmt) = parse_statement(lexer)? {
+                stmt
+            } else {
+                eprintln!(
+                    "{loc}: ERROR: reached end of file while handling `{word:?}`",
+                    loc = token.loc.clone(),
+                    word = token.token
+                );
+                return Err(());
+            };
+            Ok(Expression {
+                expression: ExpressionKind::Statement(statement),
+                loc: token.loc,
+            })
         }
         _ => {
             eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
