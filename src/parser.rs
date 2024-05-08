@@ -56,6 +56,9 @@ pub enum StatementKind {
         name: String,
         expression: Expression,
     },
+    GetVar {
+        name: String,
+    },
 }
 
 #[derive(Debug)]
@@ -160,25 +163,23 @@ pub fn parse_block(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Ve
     Ok(statements)
 }
 
-pub fn parse_proc(lexer: &mut lexer_type!()) -> super::Result<Statement> {
-    let proc = lexer.next().unwrap().unwrap();
-
+pub fn parse_proc(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Statement> {
     let name = expect_token(
         "in procedure definition",
-        proc.loc.clone(),
+        loc.clone(),
         lexer,
         TokenKind::Word("".into()),
     )?;
 
     let _open_paren = expect_token(
         "in procedure definition",
-        proc.loc.clone(),
+        loc.clone(),
         lexer,
         TokenKind::OpenParen,
     )?;
     let close_paren = expect_token(
         "in procedure definition",
-        proc.loc,
+        loc.clone(),
         lexer,
         TokenKind::CloseParen,
     )?;
@@ -193,7 +194,7 @@ pub fn parse_proc(lexer: &mut lexer_type!()) -> super::Result<Statement> {
             },
             statements: block,
         },
-        loc: name.loc,
+        loc,
     })
 }
 
@@ -252,8 +253,7 @@ pub fn parse_procparams(
     Ok(expressions)
 }
 
-pub fn parse_proccall(lexer: &mut lexer_type!()) -> super::Result<Statement> {
-    let name = lexer.next().unwrap().unwrap();
+pub fn parse_proccall(name: Token, lexer: &mut lexer_type!()) -> super::Result<Statement> {
     let parameters = parse_procparams(name.loc.clone(), lexer)?;
 
     Ok(Statement {
@@ -268,22 +268,25 @@ pub fn parse_proccall(lexer: &mut lexer_type!()) -> super::Result<Statement> {
     })
 }
 
-pub fn parse_let(lexer: &mut lexer_type!()) -> super::Result<Statement> {
-    let lett = lexer.next().unwrap().unwrap();
-
+pub fn parse_let(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Statement> {
     let name = expect_token(
         "in variable definition",
-        lett.loc.clone(),
+        loc.clone(),
         lexer,
         TokenKind::Word("".into()),
     )?;
 
-    expect_token("in variable definition", lett.loc.clone(), lexer, TokenKind::Equal)?;
+    expect_token(
+        "in variable definition",
+        loc.clone(),
+        lexer,
+        TokenKind::Equal,
+    )?;
 
-    let expr = parse_expression(lett.loc.clone(), lexer, OperatorPrecedence::lowest())?;
+    let expr = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest())?;
 
     Ok(Statement {
-        loc: lett.loc,
+        loc,
         statement: StatementKind::Let {
             name: name.to_string(),
             expression: expr,
@@ -292,7 +295,7 @@ pub fn parse_let(lexer: &mut lexer_type!()) -> super::Result<Statement> {
 }
 
 pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statement>> {
-    let token = if let Some(tok) = peek_token(lexer)? {
+    let token = if let Some(tok) = next_token(lexer)? {
         tok
     } else {
         return Ok(None);
@@ -308,11 +311,34 @@ pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statem
                     token.loc
                 );
                 return Err(());
-                // statement = parse_proc(lexer)?;
+                // statement = parse_proc(token.loc, lexer)?;
             }
-            Keyword::Let => statement = parse_let(lexer)?,
+            Keyword::Let => statement = parse_let(token.loc, lexer)?,
         },
-        TokenKind::Word(_) => statement = parse_proccall(lexer)?,
+        TokenKind::Word(_) => {
+            if let Some(ptk) = peek_token(lexer)? {
+                if ptk.token.eq(&TokenKind::OpenParen) {
+                    statement = parse_proccall(token, lexer)?
+                } else {
+                    let name = if let TokenKind::Word(name) = token.token {
+                        name
+                    } else {
+                        unreachable!();
+                    };
+                    statement = Statement {
+                        statement: StatementKind::GetVar { name },
+                        loc: token.loc,
+                    }
+                }
+            } else {
+                eprintln!(
+                    "{loc}: ERROR: reached end of file while handling `{word:?}`",
+                    loc = token.loc,
+                    word = token.token,
+                );
+                return Err(());
+            }
+        }
         _ => {
             eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
             return Err(());
@@ -323,7 +349,7 @@ pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statem
 }
 
 pub fn parse_statement_toplevel(lexer: &mut lexer_type!()) -> super::Result<Option<Statement>> {
-    let token = if let Some(tok) = peek_token(lexer)? {
+    let token = if let Some(tok) = next_token(lexer)? {
         tok
     } else {
         return Ok(None);
@@ -331,8 +357,8 @@ pub fn parse_statement_toplevel(lexer: &mut lexer_type!()) -> super::Result<Opti
 
     match token.token {
         TokenKind::Keyword(keyword) => match keyword {
-            Keyword::Proc => Ok(Some(parse_proc(lexer)?)),
-            Keyword::Let => Ok(Some(parse_let(lexer)?)),
+            Keyword::Proc => Ok(Some(parse_proc(token.loc, lexer)?)),
+            Keyword::Let => Ok(Some(parse_let(token.loc, lexer)?)),
         },
         _ => {
             eprintln!(

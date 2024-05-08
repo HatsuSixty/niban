@@ -172,6 +172,9 @@ impl Compiler {
                 println!("{expression:?}");
                 todo!();
             }
+            StatementKind::GetVar { name: _name } => {
+                todo!("Get variable");
+            }
         }
 
         Ok(ir)
