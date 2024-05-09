@@ -41,7 +41,7 @@ pub enum Value {
 pub enum Ir {
     Proc {
         proc: Proc,
-        export: bool
+        export: bool,
     },
     PushInt(i64),
     PushString(String),
@@ -120,11 +120,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn compile_expression_impl(
-        &mut self,
-        expression: Expression,
-        level: usize,
-    ) -> super::Result<(Vec<Ir>, Datatype)> {
+    fn compile_expression(&mut self, expression: Expression) -> super::Result<(Vec<Ir>, Datatype)> {
         let mut ir = Vec::new();
 
         let Expression { expression, loc } = expression;
@@ -132,14 +128,24 @@ impl Compiler {
 
         match expression {
             ExpressionKind::Binary { kind, left, right } => {
-                let (left_ir, left_datatype) = self.compile_expression_impl(*left, level + 1)?;
+                let (left_ir, left_datatype) = self.compile_expression(*left.clone())?;
                 for inst in left_ir {
                     ir.push(inst);
                 }
 
-                let (right_ir, right_datatype) = self.compile_expression_impl(*right, level + 1)?;
+                let (right_ir, right_datatype) = self.compile_expression(*right.clone())?;
                 for inst in right_ir {
                     ir.push(inst);
+                }
+
+                if left_datatype == Datatype::String {
+                    eprintln!("{}: ERROR: strings are not allowed in binary expressions", left.loc);
+                    return Err(());
+                }
+
+                if right_datatype == Datatype::String {
+                    eprintln!("{}: ERROR: strings are not allowed in binary expressions", right.loc);
+                    return Err(());
                 }
 
                 ir.push(match kind {
@@ -162,10 +168,6 @@ impl Compiler {
                 datatype = Datatype::Integer;
             }
             ExpressionKind::String(string) => {
-                if level != 0 {
-                    eprintln!("{loc}: ERROR: strings are not allowed in binary expressions");
-                    return Err(());
-                }
                 ir.push(Ir::PushString(string));
                 datatype = Datatype::String;
             }
@@ -189,17 +191,17 @@ impl Compiler {
         Ok((ir, datatype))
     }
 
-    fn compile_expression(&mut self, expression: Expression) -> super::Result<(Vec<Ir>, Datatype)> {
-        self.compile_expression_impl(expression, 0)
-    }
-
     fn compile_statement(&mut self, statement: Statement) -> super::Result<Vec<Ir>> {
         let mut ir = Vec::new();
 
         let Statement { statement, loc } = statement;
 
         match statement {
-            StatementKind::ProcDecl { name, statements, export } => {
+            StatementKind::ProcDecl {
+                name,
+                statements,
+                export,
+            } => {
                 self.scope.push(Scope::default());
 
                 let mut instructions = Vec::new();
@@ -223,7 +225,7 @@ impl Compiler {
                     .procs
                     .insert(name, proc.clone());
 
-                ir.push(Ir::Proc{proc, export});
+                ir.push(Ir::Proc { proc, export });
             }
             StatementKind::ProcCall { name, expressions } => {
                 let mut datatypes = Vec::new();
