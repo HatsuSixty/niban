@@ -232,6 +232,7 @@ impl Compiler {
                         self.find_procedure(loc.clone(), name.clone())?;
 
                         if expressions.len() != 0 {
+                            let loc = &expressions.last().unwrap().loc;
                             eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
                             return Err(());
                         }
