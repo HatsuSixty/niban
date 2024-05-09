@@ -211,12 +211,14 @@ impl<'a> Lexer<'a> {
         self.source_code.chars().nth(self.cursor).is_none()
     }
 
-    fn advance_loc(&mut self, c: char) {
+    fn advance_cursor(&mut self) {
         self.loc.col += 1;
-        if c == '\n' {
+        if self.cursor() == '\n' {
             self.loc.col = 1;
             self.loc.line += 1;
         }
+
+        self.cursor += 1;
     }
 
     pub fn next_token(&mut self) -> Result<Token, LexerError> {
@@ -225,44 +227,38 @@ impl<'a> Lexer<'a> {
         }
 
         while self.cursor().is_whitespace() {
-            self.advance_loc(self.cursor());
-
-            self.cursor += 1;
+            self.advance_cursor();
             if self.eof() {
                 return Err(LexerError::Eof(self.loc.clone()));
             }
         }
 
         if let Some(token) = Token::from_char(self.cursor(), self.loc.clone()) {
-            self.advance_loc(self.cursor());
-            self.cursor += 1;
+            self.advance_cursor();
             return Ok(token);
         }
 
         let string_loc = self.loc.clone();
         if self.cursor() == '"' {
-            self.cursor += 1;
+            self.advance_cursor();
             if self.eof() {
                 return Err(LexerError::StringEof(string_loc));
             }
-            self.advance_loc(self.cursor());
 
             let mut string = String::new();
             while self.cursor() != '"' {
                 string.push(self.cursor());
 
-                self.cursor += 1;
+                self.advance_cursor();
                 if self.eof() {
                     return Err(LexerError::StringEof(string_loc));
                 }
-                self.advance_loc(self.cursor());
             }
 
-            self.cursor += 1;
+            self.advance_cursor();
             if self.eof() {
                 return Err(LexerError::StringEof(string_loc));
             }
-            self.advance_loc(self.cursor());
 
             return Ok(Token::from_string(string, string_loc));
         }
@@ -270,9 +266,8 @@ impl<'a> Lexer<'a> {
         let mut current_token_text = String::new();
         while !is_special_character(self.cursor()) {
             current_token_text.push(self.cursor());
-            self.advance_loc(self.cursor());
 
-            self.cursor += 1;
+            self.advance_cursor();
             if self.eof() {
                 break;
             }
