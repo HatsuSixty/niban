@@ -57,8 +57,11 @@ impl QbeCompiler {
     fn compile_ir_to_qbe(&mut self, ir: Vec<Ir>) {
         for inst in ir {
             match inst {
-                Ir::Proc(Proc { name, instructions }) => {
-                    if name == "main" {
+                Ir::Proc {
+                    proc: Proc { name, instructions },
+                    export,
+                } => {
+                    if export {
                         let _ = write!(self.code, "export ");
                     }
                     let _ = writeln!(self.code, "function ${name}() {{");
@@ -188,7 +191,11 @@ impl QbeCompiler {
                     }
                 }
                 Value::String(string) => {
-                    let _ = write!(self.code, "l $str_{}", self.strings.len() + global_strings.len());
+                    let _ = write!(
+                        self.code,
+                        "l $str_{}",
+                        self.strings.len() + global_strings.len()
+                    );
                     global_strings.push(string);
                 }
             }

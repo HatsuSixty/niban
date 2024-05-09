@@ -39,7 +39,10 @@ pub enum Value {
 
 #[derive(Debug, Clone)]
 pub enum Ir {
-    Proc(Proc),
+    Proc {
+        proc: Proc,
+        export: bool
+    },
     PushInt(i64),
     PushString(String),
 
@@ -196,7 +199,7 @@ impl Compiler {
         let Statement { statement, loc } = statement;
 
         match statement {
-            StatementKind::ProcDecl { name, statements } => {
+            StatementKind::ProcDecl { name, statements, export } => {
                 self.scope.push(Scope::default());
 
                 let mut instructions = Vec::new();
@@ -220,7 +223,7 @@ impl Compiler {
                     .procs
                     .insert(name, proc.clone());
 
-                ir.push(Ir::Proc(proc));
+                ir.push(Ir::Proc{proc, export});
             }
             StatementKind::ProcCall { name, expressions } => {
                 let mut datatypes = Vec::new();

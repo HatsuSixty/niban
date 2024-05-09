@@ -15,6 +15,7 @@ fn is_special_character(c: char) -> bool {
 pub enum Keyword {
     Proc,
     Let,
+    Export,
 }
 
 impl fmt::Display for Keyword {
@@ -22,6 +23,7 @@ impl fmt::Display for Keyword {
         match self {
             Self::Proc => write!(f, "proc"),
             Self::Let => write!(f, "let"),
+            Self::Export => write!(f, "export"),
         }
     }
 }
@@ -31,6 +33,7 @@ impl Keyword {
         match text {
             "proc" => Some(Self::Proc),
             "let" => Some(Self::Let),
+            "export" => Some(Self::Export),
             _ => None,
         }
     }

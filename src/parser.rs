@@ -48,6 +48,7 @@ pub enum StatementKind {
     ProcDecl {
         name: String,
         statements: Vec<Statement>,
+        export: bool,
     },
     ProcCall {
         name: String,
@@ -165,7 +166,7 @@ pub fn parse_block(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Ve
     Ok(statements)
 }
 
-pub fn parse_proc(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Statement> {
+pub fn parse_proc(loc: Location, lexer: &mut lexer_type!(), export: bool) -> super::Result<Statement> {
     let name = expect_token(
         "in procedure definition",
         loc.clone(),
@@ -195,6 +196,7 @@ pub fn parse_proc(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Sta
                 _ => unreachable!(),
             },
             statements: block,
+            export,
         },
         loc,
     })
@@ -328,7 +330,7 @@ pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statem
 
     match token.token {
         TokenKind::Keyword(keyword) => match keyword {
-            Keyword::Proc => {
+            Keyword::Proc | Keyword::Export => {
                 eprintln!(
                     "{}: ERROR: procedure definitions are only allowed as toplevel statements",
                     token.loc
@@ -380,7 +382,12 @@ pub fn parse_statement_toplevel(lexer: &mut lexer_type!()) -> super::Result<Opti
 
     match token.token {
         TokenKind::Keyword(keyword) => match keyword {
-            Keyword::Proc => Ok(Some(parse_proc(token.loc, lexer)?)),
+            Keyword::Proc => Ok(Some(parse_proc(token.loc, lexer, false)?)),
+            Keyword::Export => {
+                expect_token("in procedure definition", token.loc.clone(), lexer, TokenKind::Keyword(Keyword::Proc))?;
+
+                Ok(Some(parse_proc(token.loc, lexer, true)?))
+            }
             Keyword::Let => Ok(Some(parse_let(token.loc, lexer)?)),
         },
         _ => {
