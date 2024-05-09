@@ -102,6 +102,21 @@ impl Compiler {
         Err(())
     }
 
+    fn name_redefinition(&self, loc: Location, name: String) -> super::Result<()> {
+        let builtin_procs = &["print"];
+
+        for scope in self.scope.iter().rev() {
+            if scope.procs.contains_key(&name)
+                || scope.variables.contains_key(&name)
+                || builtin_procs.contains(&name.as_str())
+            {
+                eprintln!("{loc}: ERROR: redefinition of name `{name}`");
+                return Err(());
+            }
+        }
+        Ok(())
+    }
+
     fn compile_expression_impl(
         &mut self,
         expression: Expression,
@@ -192,6 +207,8 @@ impl Compiler {
                 }
 
                 self.scope.pop().unwrap();
+
+                self.name_redefinition(loc, name.clone())?;
 
                 let proc = Proc {
                     name: name.clone(),
@@ -295,6 +312,8 @@ impl Compiler {
                     eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`");
                     return Err(());
                 }
+
+                self.name_redefinition(loc, name.clone())?;
 
                 let var = Variable {
                     name: name.clone(),
