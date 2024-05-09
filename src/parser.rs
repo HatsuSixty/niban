@@ -434,14 +434,12 @@ fn parse_expression(
 
     let mut left = parse_expression(loc.clone(), lexer, precedence.higher())?;
 
-    let mut loc;
     loop {
         let token = if let Some(tok) = peek_token(lexer)? {
             tok
         } else {
             break;
         };
-        loc = token.loc.clone();
 
         let operator = match Operator::from_token(token.clone()) {
             Some(op) => {
@@ -462,7 +460,7 @@ fn parse_expression(
                 left: Box::new(left.clone()),
                 right: Box::new(right),
             },
-            loc,
+            loc: loc.clone(),
         };
     }
 
