@@ -10,8 +10,6 @@ pub struct QbeCompiler {
     register_stack: usize,
     code: String,
     strings: Vec<String>,
-
-    variables: Vec<String>,
     global_variables: HashMap<String, Value>,
 }
 
@@ -22,7 +20,6 @@ impl QbeCompiler {
             register_stack: 0,
             code: String::new(),
             strings: Vec::new(),
-            variables: Vec::new(),
             global_variables: HashMap::new(),
         }
     }
@@ -69,7 +66,6 @@ impl QbeCompiler {
 
                     self.compile_ir_to_qbe(instructions);
 
-                    self.variables.clear();
                     let _ = writeln!(self.code, "ret");
                     let _ = writeln!(self.code, "}}");
                 }
@@ -132,22 +128,18 @@ impl QbeCompiler {
                 }
                 Ir::GetVar(name) => {
                     let r = self.push();
-                    if self.variables.contains(&name) {
-                        let _ = writeln!(self.code, "%s{r} =l loadl %niban_variable_{name}");
-                    } else if self.global_variables.contains_key(&name) {
+                    if self.global_variables.contains_key(&name) {
                         let _ = writeln!(self.code, "%s{r} =l loadl $niban_variable_{name}");
-                    } else {
-                        unreachable!();
+                    } else if self.global_variables.contains_key(&name) {
+                        let _ = writeln!(self.code, "%s{r} =l loadl %niban_variable_{name}");
                     }
                 }
                 Ir::SetVar(name) => {
                     let a = self.pop();
-                    if self.variables.contains(&name) {
-                        let _ = writeln!(self.code, "storel %r{a}, %niban_variable_{name}");
-                    } else if self.global_variables.contains_key(&name) {
+                    if self.global_variables.contains_key(&name) {
                         let _ = writeln!(self.code, "storel %r{a}, $niban_variable_{name}");
                     } else {
-                        unreachable!();
+                        let _ = writeln!(self.code, "storel %r{a}, %niban_variable_{name}");
                     }
                 }
                 Ir::GlobalVar {
@@ -158,7 +150,6 @@ impl QbeCompiler {
                     self.global_variables.insert(name, initial_value);
                 }
                 Ir::LocalVar(name, _) => {
-                    self.variables.push(name.clone());
                     let _ = writeln!(self.code, "%niban_variable_{name} =l alloc4 8");
                 }
             }
