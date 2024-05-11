@@ -202,9 +202,9 @@ impl<'a> Lexer<'a> {
         self.cursor += 1;
     }
 
-    pub fn peek(&mut self) -> &super::Result<Option<Token>> {
+    pub fn peek(&mut self) -> super::Result<Option<Token>> {
         if let Some(p) = &self.peek {
-            p
+            p.clone()
         } else {
             panic!("You called peek before next");
         }

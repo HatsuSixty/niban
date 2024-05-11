@@ -67,21 +67,13 @@ pub struct Statement {
     pub statement: StatementKind,
 }
 
-fn peek_token<'a>(lexer: &mut Lexer<'a>) -> super::Result<Option<Token>> {
-    lexer.peek().clone()
-}
-
-fn next_token(lexer: &mut Lexer) -> super::Result<Option<Token>> {
-    lexer.next().clone()
-}
-
 fn expect_token(
     inn: &str,
     loc: Location,
     lexer: &mut Lexer,
     token: TokenKind,
 ) -> super::Result<Token> {
-    let t = match peek_token(lexer)? {
+    let t = match lexer.peek()? {
         Some(x) => x,
         None => {
             eprintln!("{loc}: ERROR: expected token `{token:?}` {inn} but got nothing");
@@ -112,7 +104,7 @@ pub fn parse_block(loc: Location, lexer: &mut Lexer) -> super::Result<Vec<Statem
     let mut statements = Vec::new();
 
     loop {
-        let token = if let Some(x) = peek_token(lexer)? {
+        let token = if let Some(x) = lexer.peek()? {
             x
         } else {
             eprintln!(
@@ -200,7 +192,7 @@ pub fn parse_procparams(
 
     let mut loc;
     loop {
-        let token = if let Some(tok) = peek_token(lexer)? {
+        let token = if let Some(tok) = lexer.peek()? {
             tok
         } else {
             eprintln!(
@@ -217,7 +209,7 @@ pub fn parse_procparams(
 
         let expr = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest())?;
 
-        if let Some(tok) = peek_token(lexer)? {
+        if let Some(tok) = lexer.peek()? {
             match tok.token {
                 TokenKind::Comma => {
                     lexer.next()?;
@@ -303,7 +295,7 @@ pub fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
 }
 
 pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
-    let token = if let Some(tok) = next_token(lexer)? {
+    let token = if let Some(tok) = lexer.next()? {
         tok
     } else {
         return Ok(None);
@@ -324,7 +316,7 @@ pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
             Keyword::Let => statement = parse_let(token.loc, lexer)?,
         },
         TokenKind::Word(_) => {
-            if let Some(ptk) = peek_token(lexer)? {
+            if let Some(ptk) = lexer.peek()? {
                 if ptk.token.eq(&TokenKind::OpenParen) {
                     statement = parse_proccall(token, lexer)?
                 } else {
@@ -357,7 +349,7 @@ pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
 }
 
 pub fn parse_statement_toplevel(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
-    let token = if let Some(tok) = next_token(lexer)? {
+    let token = if let Some(tok) = lexer.next()? {
         tok
     } else {
         return Ok(None);
@@ -425,7 +417,7 @@ fn parse_expression(
     let mut left = parse_expression(loc.clone(), lexer, precedence.higher())?;
 
     loop {
-        let token = if let Some(tok) = peek_token(lexer)? {
+        let token = if let Some(tok) = lexer.peek()? {
             tok
         } else {
             break;
@@ -461,7 +453,7 @@ pub fn parse_primary_expression(
     loc: Location,
     lexer: &mut Lexer,
 ) -> super::Result<Expression> {
-    let token = if let Some(tok) = peek_token(lexer)? {
+    let token = if let Some(tok) = lexer.peek()? {
         tok
     } else {
         eprintln!("{loc}: ERROR: reached end of file while parsing expression");
