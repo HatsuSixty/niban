@@ -130,7 +130,7 @@ impl QbeCompiler {
                     let r = self.push();
                     if self.global_variables.contains_key(&name) {
                         let _ = writeln!(self.code, "%s{r} =l loadl $niban_variable_{name}");
-                    } else if self.global_variables.contains_key(&name) {
+                    } else {
                         let _ = writeln!(self.code, "%s{r} =l loadl %niban_variable_{name}");
                     }
                 }
@@ -141,6 +141,7 @@ impl QbeCompiler {
                     } else {
                         let _ = writeln!(self.code, "storel %r{a}, %niban_variable_{name}");
                     }
+                    self.reset_registers();
                 }
                 Ir::GlobalVar {
                     name,
