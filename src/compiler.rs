@@ -37,6 +37,18 @@ pub enum Value {
     String(String),
 }
 
+impl Value {
+    fn as_int(&self, loc: Location) -> super::Result<i64> {
+        match self {
+            Self::Integer(i) => Ok(*i),
+            e => {
+                eprintln!("{loc}: ERROR: expected integer but got {e:?}");
+                return Err(())
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Ir {
     Proc {
@@ -282,24 +294,11 @@ impl Compiler {
                 };
 
                 let (expr_ir, expr_datatype) = self.compile_expression(*expression.clone())?;
-
-                let Expression {
-                    expression: expr_kind,
-                    loc: expr_loc,
-                } = *expression;
+                let expr_loc = expression.loc.clone();
 
                 if self.scope.len() == 1 {
                     // Global variable
-                    let value = match expr_kind {
-                        ExpressionKind::Integer(i) => Value::Integer(i),
-                        ExpressionKind::String(s) => Value::String(s),
-                        _ => {
-                            eprintln!(
-                                "{expr_loc}: ERROR: expression cannot be executed at compile time"
-                            );
-                            return Err(());
-                        }
-                    };
+                    let value = compile_time_evaluate(*expression)?;
 
                     ir.push(Ir::GlobalVar {
                         name: name.clone(),
@@ -364,5 +363,61 @@ impl Compiler {
         }
 
         Ok(ir)
+    }
+}
+
+fn compile_time_evaluate(expression: Expression) -> super::Result<Value> {
+    let Expression { expression, loc } = expression;
+
+    match expression {
+        ExpressionKind::Binary { kind, left, right } => {
+            let left = compile_time_evaluate(*left)?;
+            let right = compile_time_evaluate(*right)?;
+
+            match kind {
+                Operator::Div => {
+                    let left = left.as_int(loc.clone())?;
+                    let right = right.as_int(loc)?;
+                    Ok(Value::Integer(left / right))
+                }
+                Operator::Minus => {
+                    let left = left.as_int(loc.clone())?;
+                    let right = right.as_int(loc)?;
+                    Ok(Value::Integer(left - right))
+                }
+                Operator::Mod => {
+                    let left = left.as_int(loc.clone())?;
+                    let right = right.as_int(loc)?;
+                    Ok(Value::Integer(left % right))
+                }
+                Operator::Mult => {
+                    let left = left.as_int(loc.clone())?;
+                    let right = right.as_int(loc)?;
+                    Ok(Value::Integer(left * right))
+                }
+                Operator::Plus => {
+                    match (left, right) {
+                        (Value::String(s), Value::Integer(i)) => {
+                            Ok(Value::String(format!("{s}{i}")))
+                        }
+                        (Value::Integer(i), Value::String(s)) => {
+                            Ok(Value::String(format!("{i}{s}")))
+                        }
+                        (Value::String(a), Value::String(b)) => {
+                            Ok(Value::String(format!("{a}{b}")))
+                        }
+                        (Value::Integer(a), Value::Integer(b)) => {
+                            Ok(Value::Integer(a + b))
+                        }
+                    }
+                }
+            }
+        }
+        ExpressionKind::Integer(i) => Ok(Value::Integer(i)),
+        ExpressionKind::Statement(_) => {
+            eprintln!("{loc}: ERROR: statements are not allowed in compile time expressions");
+            Err(())
+        }
+        ExpressionKind::String(s) => Ok(Value::String(s)),
     }
 }
