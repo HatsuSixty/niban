@@ -205,6 +205,10 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn get_loc(&mut self) -> Location {
+        if self.eof() {
+            return self.loc.clone();
+        }
+
         while self.cursor().is_whitespace() {
             self.advance_cursor();
             if self.eof() {

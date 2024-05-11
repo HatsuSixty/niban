@@ -1,4 +1,4 @@
-use crate::lexer::{Keyword, Lexer, /*LexerError, */Location, Token, TokenKind};
+use crate::lexer::{Keyword, Lexer, Location, Token, TokenKind};
 
 #[derive(Debug, Clone)]
 pub enum Operator {
@@ -73,14 +73,13 @@ pub struct Statement {
 
 fn expect_token(
     inn: &str,
-    loc: Location,
     lexer: &mut Lexer,
     token: TokenKind,
 ) -> super::Result<Token> {
     let t = match lexer.peek()? {
         Some(x) => x,
         None => {
-            eprintln!("{loc}: ERROR: expected token `{token:?}` {inn} but got nothing");
+            eprintln!("{loc}: ERROR: expected token `{token:?}` {inn} but got nothing", loc = lexer.get_loc());
             return Err(());
         }
     };
@@ -98,10 +97,9 @@ fn expect_token(
     Ok(t)
 }
 
-pub fn parse_block(loc: Location, lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
+pub fn parse_block(lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
     let open_brace = expect_token(
         "at the beginning of a block",
-        loc,
         lexer,
         TokenKind::OpenBrace,
     )?;
@@ -133,7 +131,6 @@ pub fn parse_block(loc: Location, lexer: &mut Lexer) -> super::Result<Vec<Statem
         };
         expect_token(
             "at the end of a statement",
-            token.loc,
             lexer,
             TokenKind::Semicolon,
         )?;
@@ -148,25 +145,22 @@ pub fn parse_block(loc: Location, lexer: &mut Lexer) -> super::Result<Vec<Statem
 pub fn parse_proc(loc: Location, lexer: &mut Lexer, export: bool) -> super::Result<Statement> {
     let name = expect_token(
         "in procedure definition",
-        loc.clone(),
         lexer,
         TokenKind::Word("".into()),
     )?;
 
     let _open_paren = expect_token(
         "in procedure definition",
-        loc.clone(),
         lexer,
         TokenKind::OpenParen,
     )?;
-    let close_paren = expect_token(
+    expect_token(
         "in procedure definition",
-        loc.clone(),
         lexer,
         TokenKind::CloseParen,
     )?;
 
-    let block = parse_block(close_paren.loc, lexer)?;
+    let block = parse_block(lexer)?;
 
     Ok(Statement {
         statement: StatementKind::ProcDecl {
@@ -182,12 +176,10 @@ pub fn parse_proc(loc: Location, lexer: &mut Lexer, export: bool) -> super::Resu
 }
 
 pub fn parse_procparams(
-    loc: Location,
     lexer: &mut Lexer,
 ) -> super::Result<Vec<Expression>> {
     let open_paren = expect_token(
         "in procedure parameters",
-        loc.clone(),
         lexer,
         TokenKind::OpenParen,
     )?;
@@ -237,7 +229,7 @@ pub fn parse_procparams(
 }
 
 pub fn parse_proccall(name: Token, lexer: &mut Lexer) -> super::Result<Statement> {
-    let parameters = parse_procparams(name.loc.clone(), lexer)?;
+    let parameters = parse_procparams(lexer)?;
 
     Ok(Statement {
         statement: StatementKind::ProcCall {
@@ -254,28 +246,24 @@ pub fn parse_proccall(name: Token, lexer: &mut Lexer) -> super::Result<Statement
 pub fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     let name = expect_token(
         "in variable definition",
-        loc.clone(),
         lexer,
         TokenKind::Word("".into()),
     )?;
 
     expect_token(
         "in variable definition",
-        loc.clone(),
         lexer,
         TokenKind::Colon,
     )?;
 
     let datatype = expect_token(
         "in variable definition",
-        loc.clone(),
         lexer,
         TokenKind::Word("".into()),
     )?;
 
     expect_token(
         "in variable definition",
-        loc.clone(),
         lexer,
         TokenKind::Equal,
     )?;
@@ -381,7 +369,7 @@ pub fn parse_statement_toplevel(lexer: &mut Lexer) -> super::Result<Option<State
         TokenKind::Keyword(keyword) => match keyword {
             Keyword::Proc => Ok(Some(parse_proc(token.loc, lexer, false)?)),
             Keyword::Export => {
-                expect_token("in procedure definition", token.loc.clone(), lexer, TokenKind::Keyword(Keyword::Proc))?;
+                expect_token("in procedure definition", lexer, TokenKind::Keyword(Keyword::Proc))?;
 
                 Ok(Some(parse_proc(token.loc, lexer, true)?))
             }
@@ -503,7 +491,7 @@ pub fn parse_primary_expression(
             lexer.next()?;
 
             let value = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest());
-            expect_token("in expression", token.loc, lexer, TokenKind::CloseParen)?;
+            expect_token("in expression", lexer, TokenKind::CloseParen)?;
             value
         }
         TokenKind::Word(_) => {
