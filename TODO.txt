@@ -1,7 +1,6 @@
  TODO
 =========================
 
-* Allow changing variable values
 * Evaluate expressions at compile time (for global variables)
 * Conditions
 * Loops

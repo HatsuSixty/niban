@@ -184,24 +184,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn cursor(&self) -> char {
-        self.source_code.chars().nth(self.cursor).unwrap()
-    }
-
-    fn eof(&self) -> bool {
-        self.source_code.chars().nth(self.cursor).is_none()
-    }
-
-    fn advance_cursor(&mut self) {
-        self.loc.col += 1;
-        if self.cursor() == '\n' {
-            self.loc.col = 1;
-            self.loc.line += 1;
-        }
-
-        self.cursor += 1;
-    }
-
     pub fn peek(&mut self) -> super::Result<Option<Token>> {
         if let Some(p) = &self.peek {
             p.clone()
@@ -220,6 +202,34 @@ impl<'a> Lexer<'a> {
             self.peek = Some(self.next_token());
             ret
         }
+    }
+
+    pub fn get_loc(&mut self) -> Location {
+        while self.cursor().is_whitespace() {
+            self.advance_cursor();
+            if self.eof() {
+                break;
+            }
+        }
+        self.loc.clone()
+    }
+
+    fn cursor(&self) -> char {
+        self.source_code.chars().nth(self.cursor).unwrap()
+    }
+
+    fn eof(&self) -> bool {
+        self.source_code.chars().nth(self.cursor).is_none()
+    }
+
+    fn advance_cursor(&mut self) {
+        self.loc.col += 1;
+        if self.cursor() == '\n' {
+            self.loc.col = 1;
+            self.loc.line += 1;
+        }
+
+        self.cursor += 1;
     }
 
     fn next_token(&mut self) -> super::Result<Option<Token>> {

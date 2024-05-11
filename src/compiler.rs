@@ -277,25 +277,23 @@ impl Compiler {
 
                 let (expr_ir, expr_datatype) = self.compile_expression(*expression.clone())?;
 
+                let Expression {
+                    expression: expr_kind,
+                    loc: expr_loc,
+                } = *expression;
+
                 if self.scope.len() == 1 {
                     // Global variable
-                    let Expression {
-                        expression: expr,
-                        loc: expr_loc,
-                    } = *expression;
-
-                    let value;
-
-                    match expr {
-                        ExpressionKind::Integer(i) => value = Value::Integer(i),
-                        ExpressionKind::String(s) => value = Value::String(s),
+                    let value = match expr_kind {
+                        ExpressionKind::Integer(i) => Value::Integer(i),
+                        ExpressionKind::String(s) => Value::String(s),
                         _ => {
                             eprintln!(
                                 "{expr_loc}: ERROR: expression cannot be executed at compile time"
                             );
                             return Err(());
                         }
-                    }
+                    };
 
                     ir.push(Ir::GlobalVar {
                         name: name.clone(),
@@ -314,7 +312,7 @@ impl Compiler {
                 }
 
                 if expr_datatype != datatype {
-                    eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`");
+                    eprintln!("{expr_loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`");
                     return Err(());
                 }
 
@@ -329,6 +327,21 @@ impl Compiler {
             StatementKind::GetVar { name } => {
                 self.find_variable(loc, name.clone())?;
                 ir.push(Ir::GetVar(name));
+            }
+            StatementKind::SetVar { name, expression } => {
+                let (expr_ir, expr_datatype) = self.compile_expression(*expression.clone())?;
+
+                let var = self.find_variable(loc.clone(), name.clone())?;
+                if var.datatype != expr_datatype {
+                    eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`", loc = expression.loc, datatype = var.datatype);
+                    return Err(());
+                }
+
+                for inst in expr_ir {
+                    ir.push(inst);
+                }
+
+                ir.push(Ir::SetVar(name.clone()));
             }
         }
 

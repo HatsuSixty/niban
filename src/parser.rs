@@ -59,6 +59,10 @@ pub enum StatementKind {
     GetVar {
         name: String,
     },
+    SetVar {
+        name: String,
+        expression: Box<Expression>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -317,17 +321,35 @@ pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
         },
         TokenKind::Word(_) => {
             if let Some(ptk) = lexer.peek()? {
-                if ptk.token.eq(&TokenKind::OpenParen) {
-                    statement = parse_proccall(token, lexer)?
-                } else {
-                    let name = if let TokenKind::Word(name) = token.token {
-                        name
-                    } else {
-                        unreachable!();
-                    };
-                    statement = Statement {
-                        statement: StatementKind::GetVar { name },
-                        loc: token.loc,
+                match ptk.token {
+                    TokenKind::OpenParen => statement = parse_proccall(token, lexer)?,
+                    TokenKind::Equal => {
+                        let name = if let TokenKind::Word(name) = token.token {
+                            name
+                        } else {
+                            unreachable!();
+                        };
+
+                        lexer.next()?;
+
+                        let expr = parse_expression(lexer.get_loc(), lexer, OperatorPrecedence::lowest())?;
+
+                        statement = Statement {
+                            statement: StatementKind::SetVar { name, expression: Box::new(expr) },
+                            loc: token.loc,
+                        };
+                    }
+                    _ => {
+                        let name = if let TokenKind::Word(name) = token.token {
+                            name
+                        } else {
+                            unreachable!();
+                        };
+
+                        statement = Statement {
+                            statement: StatementKind::GetVar { name },
+                            loc: token.loc,
+                        }
                     }
                 }
             } else {
