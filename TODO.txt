@@ -1,7 +1,6 @@
  TODO
 =========================
 
-* Evaluate expressions at compile time (for global variables)
 * Conditions
 * Loops
 * Proper integer types (i8, i16, i32, i64)
