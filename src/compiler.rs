@@ -47,6 +47,13 @@ impl Value {
             }
         }
     }
+
+    fn datatype(&self) -> Datatype {
+        match self {
+            Self::Integer(_) => Datatype::Integer,
+            Self::String(_) => Datatype::String,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -293,12 +300,15 @@ impl Compiler {
                     return Err(());
                 };
 
-                let (expr_ir, expr_datatype) = self.compile_expression(*expression.clone())?;
                 let expr_loc = expression.loc.clone();
 
                 if self.scope.len() == 1 {
                     // Global variable
                     let value = compile_time_evaluate(*expression)?;
+                    if value.datatype() != datatype {
+                        eprintln!("{expr_loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`", expr_datatype = value.datatype());
+                        return Err(());
+                    }
 
                     ir.push(Ir::GlobalVar {
                         name: name.clone(),
@@ -307,18 +317,18 @@ impl Compiler {
                     });
                 } else {
                     // Local variable
+                    let (expr_ir, expr_datatype) = self.compile_expression(*expression)?;
+                    if expr_datatype != datatype {
+                        eprintln!("{expr_loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`");
+                        return Err(());
+                    }
+
                     ir.push(Ir::LocalVar(name.clone(), datatype.clone()));
 
                     for inst in expr_ir {
                         ir.push(inst);
                     }
-
                     ir.push(Ir::SetVar(name.clone()));
-                }
-
-                if expr_datatype != datatype {
-                    eprintln!("{expr_loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`");
-                    return Err(());
                 }
 
                 self.name_redefinition(loc, name.clone())?;
