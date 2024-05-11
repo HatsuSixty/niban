@@ -21,3 +21,7 @@ For building and running the test program `test_program.niban`, run the followin
 $ cargo run test_program.niban
 $ ./test_program
 ```
+
+## Examples
+
+You can find examples in the `examples` folder.
