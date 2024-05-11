@@ -139,12 +139,18 @@ impl Compiler {
                 }
 
                 if left_datatype == Datatype::String {
-                    eprintln!("{}: ERROR: strings are not allowed in binary expressions", left.loc);
+                    eprintln!(
+                        "{}: ERROR: strings are not allowed in binary expressions",
+                        left.loc
+                    );
                     return Err(());
                 }
 
                 if right_datatype == Datatype::String {
-                    eprintln!("{}: ERROR: strings are not allowed in binary expressions", right.loc);
+                    eprintln!(
+                        "{}: ERROR: strings are not allowed in binary expressions",
+                        right.loc
+                    );
                     return Err(());
                 }
 
