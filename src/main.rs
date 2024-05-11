@@ -24,6 +24,7 @@ fn usage(program: &str, error: bool) {
         r#"Usage: {program} [OPTIONS] <input_file>
     -o,   --output  <output_file>    Use <output_file> as the output file path
     -h,   --help                     Prints this help and exits
+    -r,   --run                      Runs the compiled executable after sucessful compilation
     -lib, --library                  Don't create an entry point"#
     );
 
@@ -98,6 +99,7 @@ fn start() -> Result<()> {
     let mut file_path = None;
     let mut output_file_path = None;
     let mut library = false;
+    let mut run = false;
 
     loop {
         let arg = if let Some(arg) = args.next() {
@@ -123,6 +125,7 @@ fn start() -> Result<()> {
                 output_file_path = Some(out);
             }
             "-lib" | "--library" => library = true,
+            "-r" | "--run" => run = true,
             _ => file_path = Some(arg.clone()),
         }
     }
@@ -187,6 +190,14 @@ fn start() -> Result<()> {
         run_command(&["ar", "rcs", &output_file_path, &runtime_file_path, &object_file_path])?;
     } else {
         run_command(&["ld", "-o", &output_file_path, &runtime_file_path, &object_file_path])?;
+    }
+
+    if run {
+        if library {
+            eprintln!("[WARNING] Libraries cannot be ran");
+            return Ok(());
+        }
+        run_command(&[&format!("./{output_file_path}")])?;
     }
 
     Ok(())
