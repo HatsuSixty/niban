@@ -68,11 +68,11 @@ pub struct Statement {
 }
 
 fn peek_token<'a>(lexer: &mut Lexer<'a>) -> super::Result<Option<Token>> {
-    lexer.peek().clone().map_err(|e| eprintln!("{e}"))
+    lexer.peek().clone()
 }
 
 fn next_token(lexer: &mut Lexer) -> super::Result<Option<Token>> {
-    lexer.next().clone().map_err(|e| eprintln!("{e}"))
+    lexer.next().clone()
 }
 
 fn expect_token(
@@ -98,7 +98,7 @@ fn expect_token(
         return Err(());
     }
 
-    lexer.next();
+    lexer.next()?;
     Ok(t)
 }
 
@@ -144,7 +144,7 @@ pub fn parse_block(loc: Location, lexer: &mut Lexer) -> super::Result<Vec<Statem
 
         statements.push(statement);
     }
-    lexer.next();
+    lexer.next()?;
 
     Ok(statements)
 }
@@ -220,7 +220,7 @@ pub fn parse_procparams(
         if let Some(tok) = peek_token(lexer)? {
             match tok.token {
                 TokenKind::Comma => {
-                    lexer.next();
+                    lexer.next()?;
                 }
                 TokenKind::CloseParen => {}
                 _ => {
@@ -235,7 +235,7 @@ pub fn parse_procparams(
 
         expressions.push(expr);
     }
-    lexer.next();
+    lexer.next()?;
 
     Ok(expressions)
 }
@@ -440,7 +440,7 @@ fn parse_expression(
             }
             None => break,
         };
-        lexer.next();
+        lexer.next()?;
 
         let right = parse_expression(loc.clone(), lexer, precedence.higher())?;
 
@@ -470,7 +470,7 @@ pub fn parse_primary_expression(
 
     match token.token {
         TokenKind::String(string) => {
-            lexer.next();
+            lexer.next()?;
 
             Ok(Expression {
                 expression: ExpressionKind::String(string),
@@ -478,7 +478,7 @@ pub fn parse_primary_expression(
             })
         }
         TokenKind::Integer(integer) => {
-            lexer.next();
+            lexer.next()?;
 
             Ok(Expression {
                 expression: ExpressionKind::Integer(integer),
@@ -486,7 +486,7 @@ pub fn parse_primary_expression(
             })
         }
         TokenKind::OpenParen => {
-            lexer.next();
+            lexer.next()?;
 
             let value = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest());
             expect_token("in expression", token.loc, lexer, TokenKind::CloseParen)?;

@@ -167,26 +167,11 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum LexerError {
-    StringEof(Location),
-}
-
-impl fmt::Display for LexerError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::StringEof(loc) => {
-                write!(f, "{loc}: ERROR: reached end of file while parsing string")
-            }
-        }
-    }
-}
-
 pub struct Lexer<'a> {
     source_code: &'a str,
     loc: Location,
     cursor: usize,
-    peek: Option<Result<Option<Token>, LexerError>>,
+    peek: Option<super::Result<Option<Token>>>,
 }
 
 impl<'a> Lexer<'a> {
@@ -217,7 +202,7 @@ impl<'a> Lexer<'a> {
         self.cursor += 1;
     }
 
-    pub fn peek(&mut self) -> &Result<Option<Token>, LexerError> {
+    pub fn peek(&mut self) -> &super::Result<Option<Token>> {
         if let Some(p) = &self.peek {
             p
         } else {
@@ -225,7 +210,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next(&mut self) -> Result<Option<Token>, LexerError> {
+    pub fn next(&mut self) -> super::Result<Option<Token>> {
         if self.peek.is_some() {
             let p = self.peek.clone();
             self.peek = Some(self.next_token());
@@ -237,7 +222,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn next_token(&mut self) -> Result<Option<Token>, LexerError> {
+    fn next_token(&mut self) -> super::Result<Option<Token>> {
         if self.eof() {
             return Ok(None);
         }
@@ -258,7 +243,8 @@ impl<'a> Lexer<'a> {
         if self.cursor() == '"' {
             self.advance_cursor();
             if self.eof() {
-                return Err(LexerError::StringEof(string_loc));
+                eprintln!("{string_loc}: ERROR: reached end of file while parsing string");
+                return Err(());
             }
 
             let mut string = String::new();
@@ -267,13 +253,15 @@ impl<'a> Lexer<'a> {
 
                 self.advance_cursor();
                 if self.eof() {
-                    return Err(LexerError::StringEof(string_loc));
+                    eprintln!("{string_loc}: ERROR: reached end of file while parsing string");
+                    return Err(());
                 }
             }
 
             self.advance_cursor();
             if self.eof() {
-                return Err(LexerError::StringEof(string_loc));
+                eprintln!("{string_loc}: ERROR: reached end of file while parsing string");
+                return Err(());
             }
 
             return Ok(Some(Token::from_string(string, string_loc)));
