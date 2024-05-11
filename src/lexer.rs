@@ -1,12 +1,5 @@
 use std::fmt;
 
-#[macro_export]
-macro_rules! lexer_type {
-    () => {
-        Peekable<impl Iterator<Item=Result<Token, LexerError>>>
-    }
-}
-
 fn is_special_character(c: char) -> bool {
     Token::from_char(c, Location::new("")).is_some() || c.is_whitespace()
 }
@@ -174,16 +167,14 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LexerError {
-    Eof(Location),
     StringEof(Location),
 }
 
 impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Eof(loc) => write!(f, "{loc}: ERROR: reached end of file"),
             Self::StringEof(loc) => {
                 write!(f, "{loc}: ERROR: reached end of file while parsing string")
             }
@@ -195,6 +186,7 @@ pub struct Lexer<'a> {
     source_code: &'a str,
     loc: Location,
     cursor: usize,
+    peek: Option<Result<Option<Token>, LexerError>>,
 }
 
 impl<'a> Lexer<'a> {
@@ -203,6 +195,7 @@ impl<'a> Lexer<'a> {
             source_code,
             loc: Location::new(file_loc),
             cursor: 0,
+            peek: None,
         }
     }
 
@@ -224,21 +217,41 @@ impl<'a> Lexer<'a> {
         self.cursor += 1;
     }
 
-    pub fn next_token(&mut self) -> Result<Token, LexerError> {
+    pub fn peek(&mut self) -> &Result<Option<Token>, LexerError> {
+        if let Some(p) = &self.peek {
+            p
+        } else {
+            panic!("You called peek before next");
+        }
+    }
+
+    pub fn next(&mut self) -> Result<Option<Token>, LexerError> {
+        if self.peek.is_some() {
+            let p = self.peek.clone();
+            self.peek = Some(self.next_token());
+            p.unwrap()
+        } else {
+            let ret = self.next_token();
+            self.peek = Some(self.next_token());
+            ret
+        }
+    }
+
+    fn next_token(&mut self) -> Result<Option<Token>, LexerError> {
         if self.eof() {
-            return Err(LexerError::Eof(self.loc.clone()));
+            return Ok(None);
         }
 
         while self.cursor().is_whitespace() {
             self.advance_cursor();
             if self.eof() {
-                return Err(LexerError::Eof(self.loc.clone()));
+                return Ok(None);
             }
         }
 
         if let Some(token) = Token::from_char(self.cursor(), self.loc.clone()) {
             self.advance_cursor();
-            return Ok(token);
+            return Ok(Some(token));
         }
 
         let string_loc = self.loc.clone();
@@ -263,7 +276,7 @@ impl<'a> Lexer<'a> {
                 return Err(LexerError::StringEof(string_loc));
             }
 
-            return Ok(Token::from_string(string, string_loc));
+            return Ok(Some(Token::from_string(string, string_loc)));
         }
 
         let mut current_token_text = String::new();
@@ -283,27 +296,13 @@ impl<'a> Lexer<'a> {
         };
 
         if let Some(keyword) = Keyword::from_string(&current_token_text.as_str()) {
-            return Ok(Token::from_keyword(keyword, loc));
+            return Ok(Some(Token::from_keyword(keyword, loc)));
         }
 
         if let Ok(num) = current_token_text.parse::<i64>() {
-            Ok(Token::from_integer(num, loc))
+            Ok(Some(Token::from_integer(num, loc)))
         } else {
-            Ok(Token::from_word(current_token_text, loc))
-        }
-    }
-}
-
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Result<Token, LexerError>;
-
-    fn next(&mut self) -> Option<<Self as Iterator>::Item> {
-        match self.next_token() {
-            Ok(token) => Some(Ok(token)),
-            Err(err) => match err {
-                LexerError::Eof(_) => None,
-                _ => Some(Err(err)),
-            },
+            Ok(Some(Token::from_word(current_token_text, loc)))
         }
     }
 }

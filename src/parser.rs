@@ -1,7 +1,4 @@
-use crate::lexer::{Keyword, LexerError, Location, Token, TokenKind};
-use crate::lexer_type;
-
-use std::iter::Peekable;
+use crate::lexer::{Keyword, Lexer, /*LexerError, */Location, Token, TokenKind};
 
 #[derive(Debug, Clone)]
 pub enum Operator {
@@ -70,32 +67,18 @@ pub struct Statement {
     pub statement: StatementKind,
 }
 
-fn peek_token(lexer: &mut lexer_type!()) -> super::Result<Option<Token>> {
-    if let Some(x) = lexer.peek() {
-        match x {
-            Ok(token) => return Ok(Some(token.clone())),
-            Err(err) => match err {
-                LexerError::Eof(_) => return Ok(None),
-                e => {
-                    eprintln!("{e}");
-                    return Err(());
-                }
-            },
-        }
-    }
-    Ok(None)
+fn peek_token<'a>(lexer: &mut Lexer<'a>) -> super::Result<Option<Token>> {
+    lexer.peek().clone().map_err(|e| eprintln!("{e}"))
 }
 
-fn next_token(lexer: &mut lexer_type!()) -> super::Result<Option<Token>> {
-    let ret = peek_token(lexer);
-    lexer.next();
-    ret
+fn next_token(lexer: &mut Lexer) -> super::Result<Option<Token>> {
+    lexer.next().clone().map_err(|e| eprintln!("{e}"))
 }
 
 fn expect_token(
     inn: &str,
     loc: Location,
-    lexer: &mut lexer_type!(),
+    lexer: &mut Lexer,
     token: TokenKind,
 ) -> super::Result<Token> {
     let t = match peek_token(lexer)? {
@@ -119,7 +102,7 @@ fn expect_token(
     Ok(t)
 }
 
-pub fn parse_block(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Vec<Statement>> {
+pub fn parse_block(loc: Location, lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
     let open_brace = expect_token(
         "at the beginning of a block",
         loc,
@@ -166,7 +149,7 @@ pub fn parse_block(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Ve
     Ok(statements)
 }
 
-pub fn parse_proc(loc: Location, lexer: &mut lexer_type!(), export: bool) -> super::Result<Statement> {
+pub fn parse_proc(loc: Location, lexer: &mut Lexer, export: bool) -> super::Result<Statement> {
     let name = expect_token(
         "in procedure definition",
         loc.clone(),
@@ -204,7 +187,7 @@ pub fn parse_proc(loc: Location, lexer: &mut lexer_type!(), export: bool) -> sup
 
 pub fn parse_procparams(
     loc: Location,
-    lexer: &mut lexer_type!(),
+    lexer: &mut Lexer,
 ) -> super::Result<Vec<Expression>> {
     let open_paren = expect_token(
         "in procedure parameters",
@@ -237,7 +220,7 @@ pub fn parse_procparams(
         if let Some(tok) = peek_token(lexer)? {
             match tok.token {
                 TokenKind::Comma => {
-                    let _ = lexer.next();
+                    lexer.next();
                 }
                 TokenKind::CloseParen => {}
                 _ => {
@@ -257,7 +240,7 @@ pub fn parse_procparams(
     Ok(expressions)
 }
 
-pub fn parse_proccall(name: Token, lexer: &mut lexer_type!()) -> super::Result<Statement> {
+pub fn parse_proccall(name: Token, lexer: &mut Lexer) -> super::Result<Statement> {
     let parameters = parse_procparams(name.loc.clone(), lexer)?;
 
     Ok(Statement {
@@ -272,7 +255,7 @@ pub fn parse_proccall(name: Token, lexer: &mut lexer_type!()) -> super::Result<S
     })
 }
 
-pub fn parse_let(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Statement> {
+pub fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     let name = expect_token(
         "in variable definition",
         loc.clone(),
@@ -319,7 +302,7 @@ pub fn parse_let(loc: Location, lexer: &mut lexer_type!()) -> super::Result<Stat
     })
 }
 
-pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statement>> {
+pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
     let token = if let Some(tok) = next_token(lexer)? {
         tok
     } else {
@@ -373,7 +356,7 @@ pub fn parse_statement(lexer: &mut lexer_type!()) -> super::Result<Option<Statem
     Ok(Some(statement))
 }
 
-pub fn parse_statement_toplevel(lexer: &mut lexer_type!()) -> super::Result<Option<Statement>> {
+pub fn parse_statement_toplevel(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
     let token = if let Some(tok) = next_token(lexer)? {
         tok
     } else {
@@ -432,7 +415,7 @@ impl OperatorPrecedence {
 
 fn parse_expression(
     loc: Location,
-    lexer: &mut lexer_type!(),
+    lexer: &mut Lexer,
     precedence: OperatorPrecedence,
 ) -> super::Result<Expression> {
     if precedence == OperatorPrecedence::Primary {
@@ -476,7 +459,7 @@ fn parse_expression(
 
 pub fn parse_primary_expression(
     loc: Location,
-    lexer: &mut lexer_type!(),
+    lexer: &mut Lexer,
 ) -> super::Result<Expression> {
     let token = if let Some(tok) = peek_token(lexer)? {
         tok

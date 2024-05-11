@@ -39,7 +39,7 @@ fn compile_file(file_path: &str, library: bool) -> Result<String> {
         eprintln!("ERROR: could not open file `{file_path}`: {e}");
     })?;
 
-    let mut lexer = Lexer::new(&source_code, &file_path).peekable();
+    let mut lexer = Lexer::new(&source_code, &file_path);
 
     let mut ast = Vec::new();
     while let Some(stmt) = parse_statement_toplevel(&mut lexer)? {
