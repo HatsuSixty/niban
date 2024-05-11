@@ -1,0 +1,7 @@
+export proc print_hello() {
+    print("Hello, World");
+}
+
+export proc bye() {
+    print("Bye!");
+}

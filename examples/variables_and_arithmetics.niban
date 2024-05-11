@@ -14,8 +14,10 @@ let hello: String = "Hello, World"
 let another_string: String = "Olá, mundo!"
 
 proc main() {
-    let y: Integer = 10;
+    let y: Integer = 5;
     let x: Integer = y;
+
+    x = 10;
 
     print(x + 50);
 

@@ -1,0 +1,9 @@
+let hello: String = "Hello, " + "World"
+let nice: Integer = 34 + 35
+
+proc main() {
+    print(hello);
+
+    print("Nice number:");
+    print(nice);
+}
