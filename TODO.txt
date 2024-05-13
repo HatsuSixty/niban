@@ -4,5 +4,7 @@
 * Conditions
 * Loops
 * Proper integer types (i8, i16, i32, i64)
+* Pointers
+* Subscript operator (like C's)
 * Proper runtime library
 * String concatenation + force user to explicitly allow otherwise implicit memory allocations (so the user is aware that they have to free it)
