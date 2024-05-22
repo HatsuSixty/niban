@@ -1,0 +1,11 @@
+proc main() {
+    let x: Integer = 1 - 1;
+
+    print("the following expression:");
+    print(x);
+    print("is:");
+
+    if x {
+        print("Truthy");
+    };
+}

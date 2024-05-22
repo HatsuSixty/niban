@@ -63,6 +63,11 @@ pub enum StatementKind {
         name: String,
         expression: Box<Expression>,
     },
+    If {
+        condition: Box<Expression>,
+        then: Vec<Statement>,
+        elsee: Option<Vec<Statement>>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -71,15 +76,14 @@ pub struct Statement {
     pub statement: StatementKind,
 }
 
-fn expect_token(
-    inn: &str,
-    lexer: &mut Lexer,
-    token: TokenKind,
-) -> super::Result<Token> {
+fn expect_token(inn: &str, lexer: &mut Lexer, token: TokenKind) -> super::Result<Token> {
     let t = match lexer.peek()? {
         Some(x) => x,
         None => {
-            eprintln!("{loc}: ERROR: expected token `{token:?}` {inn} but got nothing", loc = lexer.get_loc());
+            eprintln!(
+                "{loc}: ERROR: expected token `{token:?}` {inn} but got nothing",
+                loc = lexer.get_loc()
+            );
             return Err(());
         }
     };
@@ -98,11 +102,7 @@ fn expect_token(
 }
 
 pub fn parse_block(lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
-    let open_brace = expect_token(
-        "at the beginning of a block",
-        lexer,
-        TokenKind::OpenBrace,
-    )?;
+    let open_brace = expect_token("at the beginning of a block", lexer, TokenKind::OpenBrace)?;
     let mut statements = Vec::new();
 
     loop {
@@ -129,11 +129,7 @@ pub fn parse_block(lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
             );
             return Err(());
         };
-        expect_token(
-            "at the end of a statement",
-            lexer,
-            TokenKind::Semicolon,
-        )?;
+        expect_token("at the end of a statement", lexer, TokenKind::Semicolon)?;
 
         statements.push(statement);
     }
@@ -143,22 +139,10 @@ pub fn parse_block(lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
 }
 
 pub fn parse_proc(loc: Location, lexer: &mut Lexer, export: bool) -> super::Result<Statement> {
-    let name = expect_token(
-        "in procedure definition",
-        lexer,
-        TokenKind::Word("".into()),
-    )?;
+    let name = expect_token("in procedure definition", lexer, TokenKind::Word("".into()))?;
 
-    let _open_paren = expect_token(
-        "in procedure definition",
-        lexer,
-        TokenKind::OpenParen,
-    )?;
-    expect_token(
-        "in procedure definition",
-        lexer,
-        TokenKind::CloseParen,
-    )?;
+    let _open_paren = expect_token("in procedure definition", lexer, TokenKind::OpenParen)?;
+    expect_token("in procedure definition", lexer, TokenKind::CloseParen)?;
 
     let block = parse_block(lexer)?;
 
@@ -175,14 +159,8 @@ pub fn parse_proc(loc: Location, lexer: &mut Lexer, export: bool) -> super::Resu
     })
 }
 
-pub fn parse_procparams(
-    lexer: &mut Lexer,
-) -> super::Result<Vec<Expression>> {
-    let open_paren = expect_token(
-        "in procedure parameters",
-        lexer,
-        TokenKind::OpenParen,
-    )?;
+pub fn parse_procparams(lexer: &mut Lexer) -> super::Result<Vec<Expression>> {
+    let open_paren = expect_token("in procedure parameters", lexer, TokenKind::OpenParen)?;
 
     let mut expressions = Vec::new();
 
@@ -244,29 +222,13 @@ pub fn parse_proccall(name: Token, lexer: &mut Lexer) -> super::Result<Statement
 }
 
 pub fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
-    let name = expect_token(
-        "in variable definition",
-        lexer,
-        TokenKind::Word("".into()),
-    )?;
+    let name = expect_token("in variable definition", lexer, TokenKind::Word("".into()))?;
 
-    expect_token(
-        "in variable definition",
-        lexer,
-        TokenKind::Colon,
-    )?;
+    expect_token("in variable definition", lexer, TokenKind::Colon)?;
 
-    let datatype = expect_token(
-        "in variable definition",
-        lexer,
-        TokenKind::Word("".into()),
-    )?;
+    let datatype = expect_token("in variable definition", lexer, TokenKind::Word("".into()))?;
 
-    expect_token(
-        "in variable definition",
-        lexer,
-        TokenKind::Equal,
-    )?;
+    expect_token("in variable definition", lexer, TokenKind::Equal)?;
 
     let expr = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest())?;
 
@@ -286,6 +248,29 @@ pub fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     })
 }
 
+pub fn parse_if(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
+    let condition = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest())?;
+
+    let then = parse_block(lexer)?;
+    let mut elsee = None;
+
+    if let Some(token) = lexer.peek()? {
+        if token.token.eq(&TokenKind::Keyword(Keyword::Else)) {
+            lexer.next()?;
+            elsee = Some(parse_block(lexer)?);
+        }
+    }
+
+    Ok(Statement {
+        loc,
+        statement: StatementKind::If {
+            condition: Box::new(condition),
+            then,
+            elsee,
+        },
+    })
+}
+
 pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
     let token = if let Some(tok) = lexer.next()? {
         tok
@@ -296,7 +281,7 @@ pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
     let statement;
 
     match token.token {
-        TokenKind::Keyword(keyword) => match keyword {
+        TokenKind::Keyword(ref keyword) => match keyword {
             Keyword::Proc | Keyword::Export => {
                 eprintln!(
                     "{}: ERROR: procedure definitions are only allowed as toplevel statements",
@@ -306,6 +291,11 @@ pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
                 // statement = parse_proc(token.loc, lexer)?;
             }
             Keyword::Let => statement = parse_let(token.loc, lexer)?,
+            Keyword::If => statement = parse_if(token.loc, lexer)?,
+            Keyword::Else => {
+                eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
+                return Err(());
+            }
         },
         TokenKind::Word(_) => {
             if let Some(ptk) = lexer.peek()? {
@@ -320,10 +310,14 @@ pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
 
                         lexer.next()?;
 
-                        let expr = parse_expression(lexer.get_loc(), lexer, OperatorPrecedence::lowest())?;
+                        let expr =
+                            parse_expression(lexer.get_loc(), lexer, OperatorPrecedence::lowest())?;
 
                         statement = Statement {
-                            statement: StatementKind::SetVar { name, expression: Box::new(expr) },
+                            statement: StatementKind::SetVar {
+                                name,
+                                expression: Box::new(expr),
+                            },
                             loc: token.loc,
                         };
                     }
@@ -369,11 +363,22 @@ pub fn parse_statement_toplevel(lexer: &mut Lexer) -> super::Result<Option<State
         TokenKind::Keyword(keyword) => match keyword {
             Keyword::Proc => Ok(Some(parse_proc(token.loc, lexer, false)?)),
             Keyword::Export => {
-                expect_token("in procedure definition", lexer, TokenKind::Keyword(Keyword::Proc))?;
+                expect_token(
+                    "in procedure definition",
+                    lexer,
+                    TokenKind::Keyword(Keyword::Proc),
+                )?;
 
                 Ok(Some(parse_proc(token.loc, lexer, true)?))
             }
             Keyword::Let => Ok(Some(parse_let(token.loc, lexer)?)),
+            Keyword::If | Keyword::Else => {
+                eprintln!(
+                    "{}: ERROR: if/else statements are not allowed as toplevel statements",
+                    token.loc,
+                );
+                Err(())
+            }
         },
         _ => {
             eprintln!(
@@ -459,10 +464,7 @@ fn parse_expression(
     Ok(left)
 }
 
-pub fn parse_primary_expression(
-    loc: Location,
-    lexer: &mut Lexer,
-) -> super::Result<Expression> {
+pub fn parse_primary_expression(loc: Location, lexer: &mut Lexer) -> super::Result<Expression> {
     let token = if let Some(tok) = lexer.peek()? {
         tok
     } else {

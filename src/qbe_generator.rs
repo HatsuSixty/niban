@@ -11,6 +11,7 @@ pub struct QbeCompiler {
     code: String,
     strings: Vec<String>,
     global_variables: HashMap<String, Value>,
+    jumpifnot_count: usize,
 }
 
 impl QbeCompiler {
@@ -21,6 +22,7 @@ impl QbeCompiler {
             code: String::new(),
             strings: Vec::new(),
             global_variables: HashMap::new(),
+            jumpifnot_count: 0,
         }
     }
 
@@ -64,7 +66,7 @@ impl QbeCompiler {
                     let _ = writeln!(self.code, "function ${name}() {{");
                     let _ = writeln!(self.code, "@start");
 
-                    self.compile_ir_to_qbe(instructions);
+                    self.compile_ir_to_qbe(instructions.to_vec());
 
                     let _ = writeln!(self.code, "ret");
                     let _ = writeln!(self.code, "}}");
@@ -148,10 +150,28 @@ impl QbeCompiler {
                     datatype: _,
                     initial_value,
                 } => {
-                    self.global_variables.insert(name, initial_value);
+                    self.global_variables.insert(name.to_string(), initial_value.clone());
                 }
                 Ir::LocalVar(name, _) => {
                     let _ = writeln!(self.code, "%niban_variable_{name} =l alloc4 8");
+                }
+                Ir::JumpIfNot(label_id) => {
+                    let a = self.pop();
+                    let r = self.push();
+                    let _ = writeln!(self.code, "%s{r} =l ceql %r{a}, 0");
+                    self.reset_registers();
+
+                    let i = self.jumpifnot_count;
+
+                    let cond = self.pop();
+                    let _ = writeln!(self.code, "jnz %r{cond}, @if{i}, @endif{i}");
+                    let _ = writeln!(self.code, "@if{i}");
+                    let _ = writeln!(self.code, "jmp @label{label_id}");
+                    let _ = writeln!(self.code, "@endif{i}");
+                    self.reset_registers();
+                }
+                Ir::Label(id) => {
+                    let _ = writeln!(self.code, "@label{id}");
                 }
             }
         }

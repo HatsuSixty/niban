@@ -9,6 +9,8 @@ pub enum Keyword {
     Proc,
     Let,
     Export,
+    If,
+    Else,
 }
 
 impl fmt::Display for Keyword {
@@ -17,6 +19,8 @@ impl fmt::Display for Keyword {
             Self::Proc => write!(f, "proc"),
             Self::Let => write!(f, "let"),
             Self::Export => write!(f, "export"),
+            Self::If => write!(f, "if"),
+            Self::Else => write!(f, "else"),
         }
     }
 }
@@ -27,6 +31,8 @@ impl Keyword {
             "proc" => Some(Self::Proc),
             "let" => Some(Self::Let),
             "export" => Some(Self::Export),
+            "if" => Some(Self::If),
+            "else" => Some(Self::Else),
             _ => None,
         }
     }

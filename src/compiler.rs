@@ -84,6 +84,9 @@ pub enum Ir {
     Mult,
     Div,
     Mod,
+
+    JumpIfNot(usize),
+    Label(usize),
 }
 
 #[derive(Default, Debug)]
@@ -94,6 +97,7 @@ struct Scope {
 
 pub struct Compiler {
     scope: Vec<Scope>,
+    label_count: usize,
 }
 
 impl Compiler {
@@ -101,7 +105,10 @@ impl Compiler {
         let mut scope = Vec::new();
         scope.push(Scope::default());
 
-        Self { scope }
+        Self {
+            scope,
+            label_count: 0,
+        }
     }
 
     fn find_variable(&self, loc: Location, name: String) -> super::Result<Variable> {
@@ -216,6 +223,21 @@ impl Compiler {
         Ok((ir, datatype))
     }
 
+    fn compile_block(&mut self, block: Vec<Statement>) -> super::Result<Vec<Ir>> {
+        self.scope.push(Scope::default());
+
+        let mut instructions = Vec::new();
+        for statement in block {
+            for inst in self.compile_statement(statement)? {
+                instructions.push(inst);
+            }
+        }
+
+        self.scope.pop().unwrap();
+
+        Ok(instructions)
+    }
+
     fn compile_statement(&mut self, statement: Statement) -> super::Result<Vec<Ir>> {
         let mut ir = Vec::new();
 
@@ -227,16 +249,7 @@ impl Compiler {
                 statements,
                 export,
             } => {
-                self.scope.push(Scope::default());
-
-                let mut instructions = Vec::new();
-                for statement in statements {
-                    for inst in self.compile_statement(statement)? {
-                        instructions.push(inst);
-                    }
-                }
-
-                self.scope.pop().unwrap();
+                let instructions = self.compile_block(statements)?;
 
                 self.name_redefinition(loc, name.clone())?;
 
@@ -357,6 +370,25 @@ impl Compiler {
                 }
 
                 ir.push(Ir::SetVar(name.clone()));
+            }
+            StatementKind::If { condition, then, elsee } => {
+                let (expr_ir, _) = self.compile_expression(*condition)?;
+                for inst in expr_ir {
+                    ir.push(inst);
+                }
+
+                let jumpifnot_index = ir.len();
+                ir.push(Ir::JumpIfNot(0));
+
+                for inst in self.compile_block(then)? {
+                    ir.push(inst);
+                }
+
+                ir[jumpifnot_index] = Ir::JumpIfNot(self.label_count);
+                ir.push(Ir::Label(self.label_count));
+                self.label_count += 1;
+
+                assert!(elsee.is_none(), "Else branches are not allowed for now");
             }
         }
 
