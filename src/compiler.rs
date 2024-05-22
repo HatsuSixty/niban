@@ -86,6 +86,7 @@ pub enum Ir {
     Mod,
 
     JumpIfNot(usize),
+    Jump(usize),
     Label(usize),
 }
 
@@ -384,11 +385,25 @@ impl Compiler {
                     ir.push(inst);
                 }
 
+                let mut skip_else_jmp = None;
+                if elsee.is_some() {
+                    skip_else_jmp = Some(ir.len());
+                    ir.push(Ir::Jump(0));
+                }
+
                 ir[jumpifnot_index] = Ir::JumpIfNot(self.label_count);
                 ir.push(Ir::Label(self.label_count));
                 self.label_count += 1;
 
-                assert!(elsee.is_none(), "Else branches are not allowed for now");
+                if let Some(skip_else_jmp) = skip_else_jmp {
+                    for inst in self.compile_block(elsee.unwrap())? {
+                        ir.push(inst);
+                    }
+
+                    ir[skip_else_jmp] = Ir::Jump(self.label_count);
+                    ir.push(Ir::Label(self.label_count));
+                    self.label_count += 1;
+                }
             }
         }
 

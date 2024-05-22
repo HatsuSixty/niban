@@ -162,6 +162,7 @@ impl QbeCompiler {
                     self.reset_registers();
 
                     let i = self.jumpifnot_count;
+                    self.jumpifnot_count += 1;
 
                     let cond = self.pop();
                     let _ = writeln!(self.code, "jnz %r{cond}, @if{i}, @endif{i}");
@@ -169,6 +170,9 @@ impl QbeCompiler {
                     let _ = writeln!(self.code, "jmp @label{label_id}");
                     let _ = writeln!(self.code, "@endif{i}");
                     self.reset_registers();
+                }
+                Ir::Jump(label_id) => {
+                    let _ = writeln!(self.code, "jmp @label{label_id}");
                 }
                 Ir::Label(id) => {
                     let _ = writeln!(self.code, "@label{id}");

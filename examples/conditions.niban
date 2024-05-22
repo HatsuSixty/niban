@@ -1,11 +1,18 @@
 proc main() {
-    let x: Integer = 1 - 1;
-
-    print("the following expression:");
-    print(x);
-    print("is:");
+    let x: Integer = 1 + 1;
 
     if x {
-        print("Truthy");
+        if 0 {
+            print("True from branch then");
+        } else {
+            print("False from branch then");
+        };
+    } else {
+        print("Branch else");
+        if 1 {
+            print("True from branch else");
+        } else {
+            print("False from branch else");
+        };
     };
 }
