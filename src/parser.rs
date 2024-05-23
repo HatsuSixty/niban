@@ -101,7 +101,7 @@ fn expect_token(inn: &str, lexer: &mut Lexer, token: TokenKind) -> super::Result
     Ok(t)
 }
 
-pub fn parse_block(lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
+fn parse_block(lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
     let open_brace = expect_token("at the beginning of a block", lexer, TokenKind::OpenBrace)?;
     let mut statements = Vec::new();
 
@@ -138,7 +138,7 @@ pub fn parse_block(lexer: &mut Lexer) -> super::Result<Vec<Statement>> {
     Ok(statements)
 }
 
-pub fn parse_proc(loc: Location, lexer: &mut Lexer, export: bool) -> super::Result<Statement> {
+fn parse_proc(loc: Location, lexer: &mut Lexer, export: bool) -> super::Result<Statement> {
     let name = expect_token("in procedure definition", lexer, TokenKind::Word("".into()))?;
 
     let _open_paren = expect_token("in procedure definition", lexer, TokenKind::OpenParen)?;
@@ -159,7 +159,7 @@ pub fn parse_proc(loc: Location, lexer: &mut Lexer, export: bool) -> super::Resu
     })
 }
 
-pub fn parse_procparams(lexer: &mut Lexer) -> super::Result<Vec<Expression>> {
+fn parse_procparams(lexer: &mut Lexer) -> super::Result<Vec<Expression>> {
     let open_paren = expect_token("in procedure parameters", lexer, TokenKind::OpenParen)?;
 
     let mut expressions = Vec::new();
@@ -206,7 +206,7 @@ pub fn parse_procparams(lexer: &mut Lexer) -> super::Result<Vec<Expression>> {
     Ok(expressions)
 }
 
-pub fn parse_proccall(name: Token, lexer: &mut Lexer) -> super::Result<Statement> {
+fn parse_proccall(name: Token, lexer: &mut Lexer) -> super::Result<Statement> {
     let parameters = parse_procparams(lexer)?;
 
     Ok(Statement {
@@ -221,7 +221,7 @@ pub fn parse_proccall(name: Token, lexer: &mut Lexer) -> super::Result<Statement
     })
 }
 
-pub fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
+fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     let name = expect_token("in variable definition", lexer, TokenKind::Word("".into()))?;
 
     expect_token("in variable definition", lexer, TokenKind::Colon)?;
@@ -248,7 +248,7 @@ pub fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     })
 }
 
-pub fn parse_if(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
+fn parse_if(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     let condition = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest())?;
 
     let then = parse_block(lexer)?;
@@ -271,7 +271,7 @@ pub fn parse_if(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     })
 }
 
-pub fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
+fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
     let token = if let Some(tok) = lexer.next()? {
         tok
     } else {
@@ -464,7 +464,7 @@ fn parse_expression(
     Ok(left)
 }
 
-pub fn parse_primary_expression(loc: Location, lexer: &mut Lexer) -> super::Result<Expression> {
+fn parse_primary_expression(loc: Location, lexer: &mut Lexer) -> super::Result<Expression> {
     let token = if let Some(tok) = lexer.peek()? {
         tok
     } else {
