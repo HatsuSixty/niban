@@ -11,6 +11,7 @@ pub enum Keyword {
     Export,
     If,
     Else,
+    While,
 }
 
 impl fmt::Display for Keyword {
@@ -21,6 +22,7 @@ impl fmt::Display for Keyword {
             Self::Export => write!(f, "export"),
             Self::If => write!(f, "if"),
             Self::Else => write!(f, "else"),
+            Self::While => write!(f, "while"),
         }
     }
 }
@@ -33,6 +35,7 @@ impl Keyword {
             "export" => Some(Self::Export),
             "if" => Some(Self::If),
             "else" => Some(Self::Else),
+            "while" => Some(Self::While),
             _ => None,
         }
     }

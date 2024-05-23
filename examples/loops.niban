@@ -1,0 +1,7 @@
+proc main() {
+    let x: Integer = 1;
+
+    while x {
+        print("Way too many hello worlds!");
+    };
+}

@@ -68,6 +68,10 @@ pub enum StatementKind {
         then: Vec<Statement>,
         elsee: Option<Vec<Statement>>,
     },
+    While {
+        condition: Box<Expression>,
+        body: Vec<Statement>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -271,6 +275,19 @@ fn parse_if(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     })
 }
 
+fn parse_while(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
+    let condition = parse_expression(loc.clone(), lexer, OperatorPrecedence::lowest())?;
+    let body = parse_block(lexer)?;
+
+    Ok(Statement {
+        loc,
+        statement: StatementKind::While {
+            condition: Box::new(condition),
+            body,
+        },
+    })
+}
+
 fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
     let token = if let Some(tok) = lexer.next()? {
         tok
@@ -292,6 +309,7 @@ fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
             }
             Keyword::Let => statement = parse_let(token.loc, lexer)?,
             Keyword::If => statement = parse_if(token.loc, lexer)?,
+            Keyword::While => statement = parse_while(token.loc, lexer)?,
             Keyword::Else => {
                 eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
                 return Err(());
@@ -375,6 +393,13 @@ pub fn parse_statement_toplevel(lexer: &mut Lexer) -> super::Result<Option<State
             Keyword::If | Keyword::Else => {
                 eprintln!(
                     "{}: ERROR: if/else statements are not allowed as toplevel statements",
+                    token.loc,
+                );
+                Err(())
+            }
+            Keyword::While => {
+                eprintln!(
+                    "{}: ERROR: while statements are not allowed as toplevel statements",
                     token.loc,
                 );
                 Err(())

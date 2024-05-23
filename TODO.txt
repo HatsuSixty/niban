@@ -1,7 +1,6 @@
  TODO
 =========================
 
-* Loops
 * Proper integer types (i8, i16, i32, i64)
 * Pointers
 * Subscript operator (like C's)

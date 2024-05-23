@@ -405,6 +405,29 @@ impl Compiler {
                     self.label_count += 1;
                 }
             }
+            StatementKind::While { condition, body } => {
+                let while_label_id = self.label_count;
+                self.label_count += 1;
+                ir.push(Ir::Label(while_label_id));
+
+                let (expr_ir, _) = self.compile_expression(*condition)?;
+                for inst in expr_ir {
+                    ir.push(inst);
+                }
+
+                let jumpifnot_index = ir.len();
+                ir.push(Ir::JumpIfNot(0));
+
+                for inst in self.compile_block(body)? {
+                    ir.push(inst);
+                }
+
+                ir.push(Ir::Jump(while_label_id));
+
+                ir[jumpifnot_index] = Ir::JumpIfNot(self.label_count);
+                ir.push(Ir::Label(self.label_count));
+                self.label_count += 1;
+            }
         }
 
         Ok(ir)
