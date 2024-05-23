@@ -63,6 +63,9 @@ pub enum TokenKind {
     Div,
     Mult,
     Mod,
+
+    Lt,
+    Gt,
 }
 
 impl TokenKind {
@@ -122,6 +125,8 @@ impl Token {
             '%' => kind = Some(TokenKind::Mod),
             '=' => kind = Some(TokenKind::Equal),
             ':' => kind = Some(TokenKind::Colon),
+            '<' => kind = Some(TokenKind::Lt),
+            '>' => kind = Some(TokenKind::Gt),
             _ => kind = None,
         }
 

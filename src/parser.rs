@@ -7,6 +7,8 @@ pub enum Operator {
     Mult,
     Div,
     Mod,
+    Lt,
+    Gt,
 }
 
 impl Operator {
@@ -17,6 +19,8 @@ impl Operator {
             TokenKind::Mult => Some(Self::Mult),
             TokenKind::Div => Some(Self::Div),
             TokenKind::Mod => Some(Self::Mod),
+            TokenKind::Lt => Some(Self::Lt),
+            TokenKind::Gt => Some(Self::Gt),
             _ => None,
         }
     }
@@ -420,11 +424,12 @@ enum OperatorPrecedence {
     Primary,
     Multiplicative,
     Additive,
+    ComparisonLtGt,
 }
 
 impl OperatorPrecedence {
     fn lowest() -> Self {
-        Self::Additive
+        Self::ComparisonLtGt
     }
 
     fn higher(&self) -> Self {
@@ -432,6 +437,7 @@ impl OperatorPrecedence {
             Self::Primary => Self::Primary,
             Self::Multiplicative => Self::Primary,
             Self::Additive => Self::Multiplicative,
+            Self::ComparisonLtGt => Self::Additive,
         }
     }
 
@@ -440,6 +446,7 @@ impl OperatorPrecedence {
             (Self::Primary, _) => false,
             (Self::Multiplicative, Operator::Div | Operator::Mult | Operator::Mod) => true,
             (Self::Additive, Operator::Plus | Operator::Minus) => true,
+            (Self::ComparisonLtGt, Operator::Lt | Operator::Gt) => true,
             _ => false,
         }
     }

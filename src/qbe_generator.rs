@@ -128,6 +128,20 @@ impl QbeCompiler {
                     let _ = writeln!(self.code, "%s{r} =l rem %r{a}, %r{b}");
                     self.reset_registers();
                 }
+                Ir::Lt => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    let r = self.push();
+                    let _ = writeln!(self.code, "%s{r} =l csltl %r{a}, %r{b}");
+                    self.reset_registers();
+                }
+                Ir::Gt => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    let r = self.push();
+                    let _ = writeln!(self.code, "%s{r} =l csgtl %r{a}, %r{b}");
+                    self.reset_registers();
+                }
                 Ir::GetVar(name) => {
                     let r = self.push();
                     if self.global_variables.contains_key(&name) {

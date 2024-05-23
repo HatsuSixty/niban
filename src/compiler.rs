@@ -85,6 +85,9 @@ pub enum Ir {
     Div,
     Mod,
 
+    Lt,
+    Gt,
+
     JumpIfNot(usize),
     Jump(usize),
     Label(usize),
@@ -187,6 +190,8 @@ impl Compiler {
                     Operator::Div => Ir::Div,
                     Operator::Mult => Ir::Mult,
                     Operator::Mod => Ir::Mod,
+                    Operator::Lt => Ir::Lt,
+                    Operator::Gt => Ir::Gt,
                 });
 
                 datatype =
@@ -490,6 +495,16 @@ fn compile_time_evaluate(expression: Expression) -> super::Result<Value> {
                             Ok(Value::Integer(a + b))
                         }
                     }
+                }
+                Operator::Lt => {
+                    let left = left.as_int(loc.clone())?;
+                    let right = right.as_int(loc)?;
+                    Ok(Value::Integer((left < right) as i64))
+                }
+                Operator::Gt => {
+                    let left = left.as_int(loc.clone())?;
+                    let right = right.as_int(loc)?;
+                    Ok(Value::Integer((left > right) as i64))
                 }
             }
         }
