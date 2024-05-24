@@ -22,4 +22,14 @@ proc main() {
     print(5 <= 5);
     print("10: Printing 0...");
     print(5 <= 3);
+
+    print("11: Printing 1...");
+    print(5 == 5);
+    print("12: Printing 0...");
+    print(5 != 5);
+
+    print("13: Printing 0...");
+    print(5 == 3);
+    print("14: Printing 1...");
+    print(5 != 3);
 }

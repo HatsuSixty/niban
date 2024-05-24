@@ -11,6 +11,8 @@ pub enum Operator {
     Gt,
     Le,
     Ge,
+    Eq,
+    Nq,
 }
 
 impl Operator {
@@ -25,6 +27,8 @@ impl Operator {
             TokenKind::Gt => Some(Self::Gt),
             TokenKind::GreaterEqual => Some(Self::Ge),
             TokenKind::LessEqual => Some(Self::Le),
+            TokenKind::DoubleEqual => Some(Self::Eq),
+            TokenKind::NotEqual => Some(Self::Nq),
             _ => None,
         }
     }
@@ -429,11 +433,12 @@ enum OperatorPrecedence {
     Multiplicative,
     Additive,
     ComparisonLtGt,
+    ComparisonEqNq,
 }
 
 impl OperatorPrecedence {
     fn lowest() -> Self {
-        Self::ComparisonLtGt
+        Self::ComparisonEqNq
     }
 
     fn higher(&self) -> Self {
@@ -442,6 +447,7 @@ impl OperatorPrecedence {
             Self::Multiplicative => Self::Primary,
             Self::Additive => Self::Multiplicative,
             Self::ComparisonLtGt => Self::Additive,
+            Self::ComparisonEqNq => Self::ComparisonLtGt,
         }
     }
 
@@ -451,6 +457,7 @@ impl OperatorPrecedence {
             (Self::Multiplicative, Operator::Div | Operator::Mult | Operator::Mod) => true,
             (Self::Additive, Operator::Plus | Operator::Minus) => true,
             (Self::ComparisonLtGt, Operator::Lt | Operator::Gt | Operator::Le | Operator::Ge) => true,
+            (Self::ComparisonEqNq, Operator::Eq | Operator::Nq) => true,
             _ => false,
         }
     }

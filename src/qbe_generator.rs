@@ -157,6 +157,20 @@ impl QbeCompiler {
                     let _ = writeln!(self.code, "%s{r} =l csgel %r{a}, %r{b}");
                     self.reset_registers();
                 }
+                Ir::Eq => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    let r = self.push();
+                    let _ = writeln!(self.code, "%s{r} =l ceql %r{a}, %r{b}");
+                    self.reset_registers();
+                }
+                Ir::Nq => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    let r = self.push();
+                    let _ = writeln!(self.code, "%s{r} =l cnel %r{a}, %r{b}");
+                    self.reset_registers();
+                }
                 Ir::GetVar(name) => {
                     let r = self.push();
                     if self.global_variables.contains_key(&name) {

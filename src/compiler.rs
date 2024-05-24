@@ -89,6 +89,8 @@ pub enum Ir {
     Gt,
     Le,
     Ge,
+    Eq,
+    Nq,
 
     JumpIfNot(usize),
     Jump(usize),
@@ -196,6 +198,8 @@ impl Compiler {
                     Operator::Gt => Ir::Gt,
                     Operator::Le => Ir::Le,
                     Operator::Ge => Ir::Ge,
+                    Operator::Eq => Ir::Eq,
+                    Operator::Nq => Ir::Nq,
                 });
 
                 datatype =
@@ -519,6 +523,16 @@ fn compile_time_evaluate(expression: Expression) -> super::Result<Value> {
                     let left = left.as_int(loc.clone())?;
                     let right = right.as_int(loc)?;
                     Ok(Value::Integer((left >= right) as i64))
+                }
+                Operator::Eq => {
+                    let left = left.as_int(loc.clone())?;
+                    let right = right.as_int(loc)?;
+                    Ok(Value::Integer((left == right) as i64))
+                }
+                Operator::Nq => {
+                    let left = left.as_int(loc.clone())?;
+                    let right = right.as_int(loc)?;
+                    Ok(Value::Integer((left != right) as i64))
                 }
             }
         }
