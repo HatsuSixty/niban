@@ -1,7 +1,9 @@
 proc main() {
-    let x: Integer = 1;
+    let x: Integer = 0;
 
-    while x {
-        print("Way too many hello worlds!");
+    while x < 10 {
+        print(x);
+
+        x = x + 1;
     };
 }
