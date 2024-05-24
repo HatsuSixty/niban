@@ -64,9 +64,12 @@ pub enum TokenKind {
     Mult,
     Mod,
 
+    Exclamation,
+
     Lt,
     Gt,
     DoubleEqual,
+    NotEqual,
     LessEqual,
     GreaterEqual,
 }
@@ -163,6 +166,18 @@ impl Token {
                     }
                 } else {
                     kind = Some(TokenKind::Gt);
+                }
+            }
+            '!' => {
+                if chars.len() > 1 {
+                    if chars[1] == '=' {
+                        kind = Some(TokenKind::NotEqual);
+                        used_chars = 2;
+                    } else {
+                        kind = Some(TokenKind::Exclamation);
+                    }
+                } else {
+                    kind = Some(TokenKind::Exclamation);
                 }
             }
             _ => kind = None,
