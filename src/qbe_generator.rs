@@ -55,6 +55,7 @@ impl QbeCompiler {
 
     fn compile_ir_to_qbe(&mut self, ir: Vec<Ir>) {
         for inst in ir {
+            let _ = writeln!(self.code, "# Ir::{inst:?}");
             match inst {
                 Ir::Proc {
                     proc: Proc { name, instructions },
@@ -140,6 +141,20 @@ impl QbeCompiler {
                     let a = self.pop();
                     let r = self.push();
                     let _ = writeln!(self.code, "%s{r} =l csgtl %r{a}, %r{b}");
+                    self.reset_registers();
+                }
+                Ir::Le => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    let r = self.push();
+                    let _ = writeln!(self.code, "%s{r} =l cslel %r{a}, %r{b}");
+                    self.reset_registers();
+                }
+                Ir::Ge => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    let r = self.push();
+                    let _ = writeln!(self.code, "%s{r} =l csgel %r{a}, %r{b}");
                     self.reset_registers();
                 }
                 Ir::GetVar(name) => {

@@ -9,6 +9,8 @@ pub enum Operator {
     Mod,
     Lt,
     Gt,
+    Le,
+    Ge,
 }
 
 impl Operator {
@@ -21,6 +23,8 @@ impl Operator {
             TokenKind::Mod => Some(Self::Mod),
             TokenKind::Lt => Some(Self::Lt),
             TokenKind::Gt => Some(Self::Gt),
+            TokenKind::GreaterEqual => Some(Self::Ge),
+            TokenKind::LessEqual => Some(Self::Le),
             _ => None,
         }
     }
@@ -446,7 +450,7 @@ impl OperatorPrecedence {
             (Self::Primary, _) => false,
             (Self::Multiplicative, Operator::Div | Operator::Mult | Operator::Mod) => true,
             (Self::Additive, Operator::Plus | Operator::Minus) => true,
-            (Self::ComparisonLtGt, Operator::Lt | Operator::Gt) => true,
+            (Self::ComparisonLtGt, Operator::Lt | Operator::Gt | Operator::Le | Operator::Ge) => true,
             _ => false,
         }
     }

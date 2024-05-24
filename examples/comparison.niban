@@ -1,7 +1,25 @@
 proc main() {
+    print("01: Printing 1...");
     print(1 < 2);
+    print("02: Printing 0...");
     print(1 > 2);
 
+    print("03: Printing 1...");
     print(1 > 0);
+    print("04: Printing 0...");
     print(1 < 0);
+
+    print("05: Printing 1...");
+    print(5 >= 3);
+    print("06: Printing 1...");
+    print(5 >= 5);
+    print("07: Printing 0...");
+    print(3 >= 5);
+
+    print("08: Printing 1...");
+    print(3 <= 5);
+    print("09: Printing 1...");
+    print(5 <= 5);
+    print("10: Printing 0...");
+    print(5 <= 3);
 }
