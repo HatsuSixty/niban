@@ -1,0 +1,17 @@
+proc main() {
+    let x: Integer = 1;
+
+    while x < 100 + 1 {
+        if x % 3 == 0 {
+            print("Fizz");
+        } else {
+            if x % 5 == 0 {
+                print("Buzz");
+            } else {
+                print(x);
+            };
+        };
+
+        x = x + 1;
+    };
+}
