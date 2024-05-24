@@ -1,7 +1,7 @@
 use std::fmt;
 
 fn is_special_character(c: char) -> bool {
-    Token::from_char(c, Location::new("")).is_some() || c.is_whitespace()
+    Token::from_symbols(&[c], Location::new("")).is_some() || c.is_whitespace()
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +66,9 @@ pub enum TokenKind {
 
     Lt,
     Gt,
+    DoubleEqual,
+    LessEqual,
+    GreaterEqual,
 }
 
 impl TokenKind {
@@ -109,9 +112,11 @@ pub struct Token {
 }
 
 impl Token {
-    fn from_char(c: char, loc: Location) -> Option<Self> {
+    // Returns token and consumed characters
+    fn from_symbols(chars: &[char], loc: Location) -> Option<(Self, usize)> {
         let kind;
-        match c {
+        let mut used_chars = 1;
+        match chars[0] {
             '(' => kind = Some(TokenKind::OpenParen),
             ')' => kind = Some(TokenKind::CloseParen),
             '{' => kind = Some(TokenKind::OpenBrace),
@@ -123,10 +128,43 @@ impl Token {
             '/' => kind = Some(TokenKind::Div),
             '*' => kind = Some(TokenKind::Mult),
             '%' => kind = Some(TokenKind::Mod),
-            '=' => kind = Some(TokenKind::Equal),
+            '=' => {
+                if chars.len() > 1 {
+                    if chars[1] == '=' {
+                        kind = Some(TokenKind::DoubleEqual);
+                        used_chars = 2;
+                    } else {
+                        kind = Some(TokenKind::Equal);
+                    }
+                } else {
+                    kind = Some(TokenKind::Equal);
+                }
+            }
             ':' => kind = Some(TokenKind::Colon),
-            '<' => kind = Some(TokenKind::Lt),
-            '>' => kind = Some(TokenKind::Gt),
+            '<' => {
+                if chars.len() > 1 {
+                    if chars[1] == '=' {
+                        kind = Some(TokenKind::LessEqual);
+                        used_chars = 2;
+                    } else {
+                        kind = Some(TokenKind::Lt);
+                    }
+                } else {
+                    kind = Some(TokenKind::Lt);
+                }
+            }
+            '>' => {
+                if chars.len() > 1 {
+                    if chars[1] == '=' {
+                        kind = Some(TokenKind::GreaterEqual);
+                        used_chars = 2;
+                    } else {
+                        kind = Some(TokenKind::Gt);
+                    }
+                } else {
+                    kind = Some(TokenKind::Gt);
+                }
+            }
             _ => kind = None,
         }
 
@@ -134,10 +172,10 @@ impl Token {
             return None;
         }
 
-        Some(Self {
+        Some((Self {
             token: kind.unwrap(),
             loc,
-        })
+        }, used_chars))
     }
 
     fn from_keyword(keyword: Keyword, loc: Location) -> Self {
@@ -232,6 +270,10 @@ impl<'a> Lexer<'a> {
         self.loc.clone()
     }
 
+    fn peek_cursor(&self) -> Option<char> {
+        self.source_code.chars().nth(self.cursor + 1)
+    }
+
     fn cursor(&self) -> char {
         self.source_code.chars().nth(self.cursor).unwrap()
     }
@@ -262,9 +304,19 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        if let Some(token) = Token::from_char(self.cursor(), self.loc.clone()) {
-            self.advance_cursor();
-            return Ok(Some(token));
+
+        {
+            let chars = if let Some(c) = self.peek_cursor() {
+                vec![self.cursor(), c]
+            } else {
+                vec![self.cursor()]
+            };
+            if let Some((token, used_chars)) = Token::from_symbols(chars.as_slice(), self.loc.clone()) {
+                for _ in 0..used_chars {
+                    self.advance_cursor();
+                }
+                return Ok(Some(token));
+            }
         }
 
         let string_loc = self.loc.clone();
