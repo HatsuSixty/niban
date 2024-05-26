@@ -1,5 +1,5 @@
 proc main() {
-    let x: Integer = 0;
+    let x: I32 = 0;
 
     while x < 10 {
         print(x);

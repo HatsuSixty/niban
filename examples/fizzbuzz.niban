@@ -1,5 +1,5 @@
 proc main() {
-    let x: Integer = 1;
+    let x: I32 = 1;
 
     while x < 100 + 1 {
         if x % 3 == 0 {

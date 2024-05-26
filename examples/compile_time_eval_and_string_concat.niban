@@ -1,5 +1,5 @@
 let hello: String = "Hello, " + "World"
-let nice: Integer = 34 + 35
+let nice: I32 = 34 + 35
 
 proc main() {
     print(hello);

@@ -17,16 +17,32 @@ pub struct Variable {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Datatype {
-    Integer,
+    I8,
+    I16,
+    I32,
+    I64,
     String,
 }
 
 impl Datatype {
     fn from_string(string: String) -> Option<Self> {
         match string.as_str() {
-            "Integer" => Some(Self::Integer),
+            "I8" => Some(Self::I8),
+            "I16" => Some(Self::I16),
+            "I32" => Some(Self::I32),
+            "I64" => Some(Self::I64),
             "String" => Some(Self::String),
             _ => None,
+        }
+    }
+
+    pub fn get_size(&self) -> usize {
+        match self {
+            Datatype::I8 => 1,
+            Datatype::I16 => 2,
+            Datatype::I32 => 4,
+            Datatype::I64 => 8,
+            Datatype::String => 8, // 64 bit pointer
         }
     }
 }
@@ -50,7 +66,7 @@ impl Value {
 
     fn datatype(&self) -> Datatype {
         match self {
-            Self::Integer(_) => Datatype::Integer,
+            Self::Integer(_) => Datatype::I32,
             Self::String(_) => Datatype::String,
         }
     }
@@ -211,7 +227,7 @@ impl Compiler {
             }
             ExpressionKind::Integer(i) => {
                 ir.push(Ir::PushInt(i));
-                datatype = Datatype::Integer;
+                datatype = Datatype::I32;
             }
             ExpressionKind::String(string) => {
                 ir.push(Ir::PushString(string));
@@ -298,7 +314,9 @@ impl Compiler {
                         }
 
                         match &datatypes[0] {
-                            Datatype::Integer => ir.push(Ir::PrintInt),
+                            Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64 => {
+                                ir.push(Ir::PrintInt)
+                            }
                             Datatype::String => ir.push(Ir::PrintString),
                         }
                     }

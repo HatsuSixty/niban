@@ -4,26 +4,41 @@ use std::fmt::Write;
 use crate::compiler::Ir;
 use crate::compiler::Proc;
 use crate::compiler::Value;
+use crate::compiler::Datatype;
 
+fn datatype_as_load(datatype: Datatype) -> &'static str {
+    match datatype {
+        Datatype::I8 => "loadsb",
+        Datatype::I16 => "loadsh",
+        Datatype::I32 => "loadsw",
+        Datatype::I64 | Datatype::String => "loadl",
+    }
+}
+
+fn datatype_as_store(datatype: Datatype) -> &'static str {
+    match datatype {
+        Datatype::I8 => "storeb",
+        Datatype::I16 => "storeh",
+        Datatype::I32 => "storew",
+        Datatype::I64 | Datatype::String => "storel",
+    }
+}
+
+#[derive(Default)]
 pub struct QbeCompiler {
     stack: usize,
     register_stack: usize,
-    code: String,
-    strings: Vec<String>,
-    global_variables: HashMap<String, Value>,
     jumpifnot_count: usize,
+    code: String,
+
+    global_variables: HashMap<String, (Datatype, Value)>,
+    local_variables: HashMap<String, Datatype>,
+    strings: Vec<String>,
 }
 
 impl QbeCompiler {
     pub fn new() -> Self {
-        Self {
-            stack: 0,
-            register_stack: 0,
-            code: String::new(),
-            strings: Vec::new(),
-            global_variables: HashMap::new(),
-            jumpifnot_count: 0,
-        }
+        Self::default()
     }
 
     fn string(&mut self, string: String) -> String {
@@ -67,6 +82,7 @@ impl QbeCompiler {
                     let _ = writeln!(self.code, "function ${name}() {{");
                     let _ = writeln!(self.code, "@start");
 
+                    self.local_variables.clear();
                     self.compile_ir_to_qbe(instructions.to_vec());
 
                     let _ = writeln!(self.code, "ret");
@@ -173,30 +189,58 @@ impl QbeCompiler {
                 }
                 Ir::GetVar(name) => {
                     let r = self.push();
-                    if self.global_variables.contains_key(&name) {
-                        let _ = writeln!(self.code, "%s{r} =l loadl $niban_variable_{name}");
+
+                    let is_global;
+                    let datatype = if let Some(v) = self.global_variables.get(&name) {
+                        is_global = true;
+                        &v.0
+                    } else if let Some(v) = self.local_variables.get(&name) {
+                        is_global = false;
+                        v
                     } else {
-                        let _ = writeln!(self.code, "%s{r} =l loadl %niban_variable_{name}");
+                        unreachable!();
+                    };
+
+                    let load = datatype_as_load(datatype.clone());
+                    if is_global {
+                        let _ = writeln!(self.code, "%s{r} =l {load} $niban_variable_{name}");
+                    } else {
+                        let _ = writeln!(self.code, "%s{r} =l {load} %niban_variable_{name}");
                     }
                 }
                 Ir::SetVar(name) => {
                     let a = self.pop();
-                    if self.global_variables.contains_key(&name) {
-                        let _ = writeln!(self.code, "storel %r{a}, $niban_variable_{name}");
+
+                    let is_global;
+                    let datatype = if let Some(v) = self.global_variables.get(&name) {
+                        is_global = true;
+                        &v.0
+                    } else if let Some(v) = self.local_variables.get(&name) {
+                        is_global = false;
+                        v
                     } else {
-                        let _ = writeln!(self.code, "storel %r{a}, %niban_variable_{name}");
+                        unreachable!();
+                    };
+
+                    let store = datatype_as_store(datatype.clone());
+                    if is_global {
+                        let _ = writeln!(self.code, "{store} %r{a}, $niban_variable_{name}");
+                    } else {
+                        let _ = writeln!(self.code, "{store} %r{a}, %niban_variable_{name}");
                     }
+
                     self.reset_registers();
                 }
                 Ir::GlobalVar {
                     name,
-                    datatype: _,
+                    datatype,
                     initial_value,
                 } => {
-                    self.global_variables.insert(name.to_string(), initial_value.clone());
+                    self.global_variables.insert(name.to_string(), (datatype, initial_value.clone()));
                 }
-                Ir::LocalVar(name, _) => {
-                    let _ = writeln!(self.code, "%niban_variable_{name} =l alloc4 8");
+                Ir::LocalVar(name, datatype) => {
+                    let _ = writeln!(self.code, "%niban_variable_{name} =l alloc4 {size}", size = datatype.get_size());
+                    self.local_variables.insert(name.to_string(), datatype);
                 }
                 Ir::JumpIfNot(label_id) => {
                     let a = self.pop();
@@ -240,16 +284,20 @@ impl QbeCompiler {
         for (var, value) in &self.global_variables {
             let _ = write!(self.code, "data $niban_variable_{var} = {{ ");
             match value {
-                Value::Integer(i) => {
+                (datatype, Value::Integer(i)) => {
                     let bytes = i.to_le_bytes();
-                    for (i, byte) in bytes.iter().enumerate() {
-                        let _ = write!(self.code, "b {byte}");
-                        if i != bytes.len() - 1 {
+                    let len = datatype.get_size();
+
+                    for i in 0..len {
+                        let _ = write!(self.code, "b {}", bytes[i]);
+                        if i != len - 1 {
                             let _ = write!(self.code, ", ");
                         }
                     }
                 }
-                Value::String(string) => {
+                (datatype, Value::String(string)) => {
+                    assert!(datatype == &Datatype::String);
+
                     let _ = write!(
                         self.code,
                         "l $str_{}",

@@ -1,5 +1,5 @@
 proc main() {
-    let x: Integer = 1 + 1;
+    let x: I32 = 1 + 1;
 
     if x {
         if 0 {
