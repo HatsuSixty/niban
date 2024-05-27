@@ -273,7 +273,14 @@ fn parse_if(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     if let Some(token) = lexer.peek()? {
         if token.token.eq(&TokenKind::Keyword(Keyword::Else)) {
             lexer.next()?;
-            elsee = Some(parse_block(lexer)?);
+
+            match lexer.peek()? {
+                Some(Token { token: TokenKind::Keyword(Keyword::If), .. }) => {
+                    let iff = lexer.next()?.unwrap();
+                    elsee = Some(vec![parse_if(iff.loc, lexer)?]);
+                }
+                _ => elsee = Some(parse_block(lexer)?),
+            }
         }
     }
 

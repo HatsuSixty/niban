@@ -15,4 +15,18 @@ proc main() {
             print("False from branch else");
         };
     };
+
+    let y: I32 = 2;
+
+    if y == 0 {
+        print("y is 0");
+    } else if y == 1 {
+        print("y is 1");
+    } else if y == 2 {
+        print("y is 2");
+    } else if y == 3 {
+        print("y is 3");
+    } else {
+        print("y is another number");
+    };
 }
