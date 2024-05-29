@@ -38,6 +38,13 @@ impl Datatype {
             Datatype::None => 0,
         }
     }
+
+    fn mismatches(&self, other: &Datatype) -> bool {
+        match (self, other) {
+            (Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64, Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64) => false,
+            (a, b) => a != b,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -338,7 +345,7 @@ impl Compiler {
                 if self.scope.len() == 1 {
                     // Global variable
                     let value = compile_time_evaluate(*expression)?;
-                    if value.datatype() != datatype {
+                    if value.datatype().mismatches(&datatype) {
                         eprintln!("{expr_loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`", expr_datatype = value.datatype());
                         return Err(());
                     }
@@ -351,7 +358,7 @@ impl Compiler {
                 } else {
                     // Local variable
                     let (expr_ir, expr_datatype) = self.compile_expression(*expression)?;
-                    if expr_datatype != datatype {
+                    if expr_datatype.mismatches(&datatype) {
                         eprintln!("{expr_loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`");
                         return Err(());
                     }
@@ -382,7 +389,7 @@ impl Compiler {
                 let (expr_ir, expr_datatype) = self.compile_expression(*expression.clone())?;
 
                 let var = self.find_variable(loc.clone(), name.clone())?;
-                if var.datatype != expr_datatype {
+                if var.datatype.mismatches(&expr_datatype) {
                     eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`", loc = expression.loc, datatype = var.datatype);
                     return Err(());
                 }
@@ -478,7 +485,7 @@ impl Compiler {
                 };
 
                 let (expr_ir, expr_datatype) = self.compile_expression(*expression)?;
-                if expr_datatype != addr_datatype {
+                if expr_datatype.mismatches(&addr_datatype) {
                     eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and memory location has type `{addr_datatype:?}`");
                     return Err(());
                 }
