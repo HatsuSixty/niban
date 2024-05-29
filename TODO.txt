@@ -1,7 +1,6 @@
  TODO
 =========================
 
-* Pointers
 * Subscript operator (like C's)
 * Proper runtime library
 * String concatenation + force user to explicitly allow otherwise implicit memory allocations (so the user is aware that they have to free it)
