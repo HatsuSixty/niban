@@ -1,4 +1,4 @@
-use crate::lexer::{Keyword, Lexer, Location, Token, TokenKind};
+use crate::{lexer::{Keyword, Lexer, Location, Token, TokenKind}, compiler::Datatype};
 
 #[derive(Debug, Clone)]
 pub enum Operator {
@@ -65,7 +65,7 @@ pub enum StatementKind {
     },
     Let {
         name: String,
-        datatype: String,
+        datatype: Datatype,
         expression: Box<Expression>,
     },
     GetVar {
@@ -83,6 +83,16 @@ pub enum StatementKind {
     While {
         condition: Box<Expression>,
         body: Vec<Statement>,
+    },
+    AddrOf {
+        name: String,
+    },
+    WriteIntoAddr {
+        name: String,
+        expression: Box<Expression>,
+    },
+    Dereference {
+        name: String,
     },
 }
 
@@ -237,12 +247,40 @@ fn parse_proccall(name: Token, lexer: &mut Lexer) -> super::Result<Statement> {
     })
 }
 
+fn parse_datatype(lexer: &mut Lexer) -> super::Result<Datatype> {
+    let token = expect_token("in datatype", lexer, TokenKind::Word("".into()))?;
+    let name = if let TokenKind::Word(text) = token.token {
+        text
+    } else {
+        unreachable!();
+    };
+
+    Ok(match name.as_str() {
+        "I8" => Datatype::I8,
+        "I16" => Datatype::I16,
+        "I32" => Datatype::I32,
+        "I64" => Datatype::I64,
+        "String" => Datatype::String,
+        "Pointer" => {
+            expect_token("in datatype", lexer, TokenKind::OpenParen)?;
+            let inner_type = parse_datatype(lexer)?;
+            expect_token("in datatype", lexer, TokenKind::CloseParen)?;
+
+            Datatype::Pointer(Box::new(inner_type))
+        }
+        _ => {
+            eprintln!("{loc}: ERROR: unknown datatype `{name}`", loc = token.loc);
+            return Err(());
+        }
+    })
+}
+
 fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     let name = expect_token("in variable definition", lexer, TokenKind::Word("".into()))?;
 
     expect_token("in variable definition", lexer, TokenKind::Colon)?;
 
-    let datatype = expect_token("in variable definition", lexer, TokenKind::Word("".into()))?;
+    let datatype = parse_datatype(lexer)?;
 
     expect_token("in variable definition", lexer, TokenKind::Equal)?;
 
@@ -255,10 +293,7 @@ fn parse_let(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
                 TokenKind::Word(name) => name,
                 _ => unreachable!(),
             },
-            datatype: match datatype.token {
-                TokenKind::Word(tp) => tp,
-                _ => unreachable!(),
-            },
+            datatype,
             expression: Box::new(expr),
         },
     })
@@ -304,6 +339,55 @@ fn parse_while(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
             condition: Box::new(condition),
             body,
         },
+    })
+}
+
+fn parse_dereference(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
+    let name = expect_token("in dereference statement", lexer, TokenKind::Word("".into()))?;
+
+    match lexer.peek()? {
+        Some(Token { token: TokenKind::Equal, .. }) => {
+            lexer.next()?;
+
+            let expr = parse_expression(lexer.get_loc(), lexer, OperatorPrecedence::lowest())?;
+            Ok(Statement {
+                statement: StatementKind::WriteIntoAddr {
+                    name: if let TokenKind::Word(name) = name.token {
+                        name
+                    } else {
+                        unreachable!();
+                    },
+                    expression: Box::new(expr),
+                },
+                loc,
+            })
+        }
+        _ => {
+            Ok(Statement {
+                statement: StatementKind::Dereference {
+                    name: if let TokenKind::Word(name) = name.token {
+                        name
+                    } else {
+                        unreachable!();
+                    },
+                },
+                loc,
+            })
+        }
+    }
+}
+
+fn parse_addrof(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
+    let name = expect_token("in addrof statement", lexer, TokenKind::Word("".into()))?;
+    Ok(Statement {
+        statement: StatementKind::AddrOf {
+            name: if let TokenKind::Word(name) = name.token {
+                name
+            } else {
+                unreachable!();
+            },
+        },
+        loc,
     })
 }
 
@@ -380,6 +464,8 @@ fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
                 return Err(());
             }
         }
+        TokenKind::Ampersand => statement = parse_addrof(token.loc, lexer)?,
+        TokenKind::Mult => statement = parse_dereference(token.loc, lexer)?,
         _ => {
             eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
             return Err(());
@@ -546,7 +632,7 @@ fn parse_primary_expression(loc: Location, lexer: &mut Lexer) -> super::Result<E
             expect_token("in expression", lexer, TokenKind::CloseParen)?;
             value
         }
-        TokenKind::Word(_) => {
+        _ => {
             let statement = if let Some(stmt) = parse_statement(lexer)? {
                 stmt
             } else {
@@ -561,10 +647,6 @@ fn parse_primary_expression(loc: Location, lexer: &mut Lexer) -> super::Result<E
                 expression: ExpressionKind::Statement(statement),
                 loc: token.loc,
             })
-        }
-        _ => {
-            eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
-            Err(())
         }
     }
 }

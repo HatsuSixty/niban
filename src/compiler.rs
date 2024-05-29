@@ -22,20 +22,11 @@ pub enum Datatype {
     I32,
     I64,
     String,
+    Pointer(Box<Datatype>),
+    None,
 }
 
 impl Datatype {
-    fn from_string(string: String) -> Option<Self> {
-        match string.as_str() {
-            "I8" => Some(Self::I8),
-            "I16" => Some(Self::I16),
-            "I32" => Some(Self::I32),
-            "I64" => Some(Self::I64),
-            "String" => Some(Self::String),
-            _ => None,
-        }
-    }
-
     pub fn get_size(&self) -> usize {
         match self {
             Datatype::I8 => 1,
@@ -43,6 +34,8 @@ impl Datatype {
             Datatype::I32 => 4,
             Datatype::I64 => 8,
             Datatype::String => 8, // 64 bit pointer
+            Datatype::Pointer(_) => 8,
+            Datatype::None => 0,
         }
     }
 }
@@ -111,6 +104,10 @@ pub enum Ir {
     JumpIfNot(usize),
     Jump(usize),
     Label(usize),
+
+    AddrOf(String),
+    Read(Datatype),
+    Write(Datatype),
 }
 
 #[derive(Default, Debug)]
@@ -173,7 +170,7 @@ impl Compiler {
     fn compile_expression(&mut self, expression: Expression) -> super::Result<(Vec<Ir>, Datatype)> {
         let mut ir = Vec::new();
 
-        let Expression { expression, loc } = expression;
+        let Expression { expression, loc: _ } = expression;
         let datatype;
 
         match expression {
@@ -234,19 +231,11 @@ impl Compiler {
                 datatype = Datatype::String;
             }
             ExpressionKind::Statement(statement) => {
-                for inst in self.compile_statement(statement.clone())? {
+                let (stmt_ir, stmt_datatype) = self.compile_statement(statement.clone())?;
+                for inst in stmt_ir {
                     ir.push(inst);
                 }
-                match statement.statement {
-                    StatementKind::GetVar { name } => {
-                        let var = self.find_variable(loc, name)?;
-                        datatype = var.datatype;
-                    }
-                    _ => {
-                        eprintln!("{loc}: ERROR: unexpected statement in expression");
-                        return Err(());
-                    }
-                }
+                datatype = stmt_datatype;
             }
         }
 
@@ -258,7 +247,8 @@ impl Compiler {
 
         let mut instructions = Vec::new();
         for statement in block {
-            for inst in self.compile_statement(statement)? {
+            let (stmt_ir, _) = self.compile_statement(statement)?;
+            for inst in stmt_ir {
                 instructions.push(inst);
             }
         }
@@ -268,9 +258,10 @@ impl Compiler {
         Ok(instructions)
     }
 
-    fn compile_statement(&mut self, statement: Statement) -> super::Result<Vec<Ir>> {
+    fn compile_statement(&mut self, statement: Statement) -> super::Result<(Vec<Ir>, Datatype)> {
         let mut ir = Vec::new();
 
+        let mut statement_datatype = Datatype::None;
         let Statement { statement, loc } = statement;
 
         match statement {
@@ -314,10 +305,14 @@ impl Compiler {
                         }
 
                         match &datatypes[0] {
-                            Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64 => {
+                            Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64 | Datatype::Pointer(_) => {
                                 ir.push(Ir::PrintInt)
                             }
                             Datatype::String => ir.push(Ir::PrintString),
+                            Datatype::None => {
+                                eprintln!("{loc}: ERROR: mismatched types: expression has type `None` and procedure `{name}` expects `I8`, `I16`, `I32`, `I64` or `Pointer`");
+                                return Err(());
+                            }
                         }
                     }
                     _ => {
@@ -338,13 +333,6 @@ impl Compiler {
                 expression,
                 datatype,
             } => {
-                let datatype = if let Some(datatype) = Datatype::from_string(datatype.clone()) {
-                    datatype
-                } else {
-                    eprintln!("{loc}: ERROR: unknown type `{datatype}`");
-                    return Err(());
-                };
-
                 let expr_loc = expression.loc.clone();
 
                 if self.scope.len() == 1 {
@@ -385,8 +373,10 @@ impl Compiler {
                 self.scope.last_mut().unwrap().variables.insert(name, var);
             }
             StatementKind::GetVar { name } => {
-                self.find_variable(loc, name.clone())?;
+                let variable = self.find_variable(loc, name.clone())?;
                 ir.push(Ir::GetVar(name));
+
+                statement_datatype = variable.datatype;
             }
             StatementKind::SetVar { name, expression } => {
                 let (expr_ir, expr_datatype) = self.compile_expression(*expression.clone())?;
@@ -459,16 +449,57 @@ impl Compiler {
                 ir.push(Ir::Label(self.label_count));
                 self.label_count += 1;
             }
+            StatementKind::AddrOf { name } => {
+                let variable = self.find_variable(loc, name.clone())?;
+                ir.push(Ir::AddrOf(name));
+
+                statement_datatype = Datatype::Pointer(Box::new(variable.datatype));
+            }
+            StatementKind::Dereference { name } => {
+                let variable = self.find_variable(loc.clone(), name.clone())?;
+                let ptr_to_datatype = if let Datatype::Pointer(datatype) = variable.datatype {
+                    *datatype
+                } else {
+                    eprintln!("{loc}: ERROR: trying to dereference non-pointer variable");
+                    return Err(());
+                };
+
+                ir.push(Ir::GetVar(name.clone()));
+                ir.push(Ir::Read(ptr_to_datatype.clone()));
+
+                statement_datatype = ptr_to_datatype;
+            }
+            StatementKind::WriteIntoAddr { name, expression } => {
+                let addr_datatype = if let Datatype::Pointer(datatype) = self.find_variable(loc.clone(), name.clone())?.datatype {
+                    *datatype
+                } else {
+                    eprintln!("{loc}: ERROR: write address must be a pointer");
+                    return Err(());
+                };
+
+                let (expr_ir, expr_datatype) = self.compile_expression(*expression)?;
+                if expr_datatype != addr_datatype {
+                    eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and memory location has type `{addr_datatype:?}`");
+                    return Err(());
+                }
+                for inst in expr_ir {
+                    ir.push(inst);
+                }
+
+                ir.push(Ir::GetVar(name.clone()));
+                ir.push(Ir::Write(addr_datatype));
+            }
         }
 
-        Ok(ir)
+        Ok((ir, statement_datatype))
     }
 
     pub fn compile_ast(&mut self, ast: Vec<Statement>) -> super::Result<Vec<Ir>> {
         let mut ir = Vec::new();
 
         for st in ast {
-            for inst in self.compile_statement(st)? {
+            let (stmt_ir, _) = self.compile_statement(st)?;
+            for inst in stmt_ir {
                 ir.push(inst);
             }
         }

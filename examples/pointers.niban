@@ -1,0 +1,13 @@
+proc main() {
+    let y: I32 = 10;
+
+    let x: Pointer(I32) = &y;
+    *x = 20;
+
+    let z: Pointer(Pointer(I32)) = &x;
+
+    let a: Pointer(I32) = *z;
+    let b: I32 = *a;
+
+    print(b);
+}

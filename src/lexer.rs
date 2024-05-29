@@ -65,6 +65,7 @@ pub enum TokenKind {
     Mod,
 
     Exclamation,
+    Ampersand,
 
     Lt,
     Gt,
@@ -144,6 +145,7 @@ impl Token {
                 }
             }
             ':' => kind = Some(TokenKind::Colon),
+            '&' => kind = Some(TokenKind::Ampersand),
             '<' => {
                 if chars.len() > 1 {
                     if chars[1] == '=' {

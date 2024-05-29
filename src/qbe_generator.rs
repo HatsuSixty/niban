@@ -11,7 +11,8 @@ fn datatype_as_load(datatype: Datatype) -> &'static str {
         Datatype::I8 => "loadsb",
         Datatype::I16 => "loadsh",
         Datatype::I32 => "loadsw",
-        Datatype::I64 | Datatype::String => "loadl",
+        Datatype::I64 | Datatype::String | Datatype::Pointer(_) => "loadl",
+        Datatype::None => unreachable!(),
     }
 }
 
@@ -20,7 +21,8 @@ fn datatype_as_store(datatype: Datatype) -> &'static str {
         Datatype::I8 => "storeb",
         Datatype::I16 => "storeh",
         Datatype::I32 => "storew",
-        Datatype::I64 | Datatype::String => "storel",
+        Datatype::I64 | Datatype::String | Datatype::Pointer(_) => "storel",
+        Datatype::None => unreachable!(),
     }
 }
 
@@ -263,6 +265,33 @@ impl QbeCompiler {
                 }
                 Ir::Label(id) => {
                     let _ = writeln!(self.code, "@label{id}");
+                }
+                Ir::AddrOf(var_name) => {
+                    let r = self.push();
+
+                    if self.global_variables.contains_key(&var_name) {
+                        let _ = writeln!(self.code, "%s{r} =l copy $niban_variable_{var_name}");
+                    } else if self.local_variables.contains_key(&var_name) {
+                        let _ = writeln!(self.code, "%s{r} =l copy %niban_variable_{var_name}");
+                    } else {
+                        unreachable!();
+                    }
+                }
+                Ir::Read(datatype) => {
+                    let a = self.pop();
+                    let r = self.push();
+
+                    let load = datatype_as_load(datatype);
+                    let _ = writeln!(self.code, "%s{r} =l {load} %r{a}");
+
+                    self.reset_registers();
+                }
+                Ir::Write(datatype) => {
+                    let addr = self.pop();
+                    let value = self.pop();
+
+                    let store = datatype_as_store(datatype);
+                    let _ = writeln!(self.code, "{store} %r{value}, %r{addr}");
                 }
             }
         }
