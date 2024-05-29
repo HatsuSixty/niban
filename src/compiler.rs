@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::lexer::Location;
-use crate::parser::{Expression, ExpressionKind, Operator, Statement, StatementKind};
+use crate::parser::{Expression, ExpressionKind, Operator, Statement, StatementKind, UnaryOperator};
 
 #[derive(Debug, Clone)]
 pub struct Proc {
@@ -110,6 +110,7 @@ pub enum Ir {
     Ge,
     Eq,
     Nq,
+    Not,
 
     JumpIfNot(usize),
     Jump(usize),
@@ -246,6 +247,18 @@ impl Compiler {
                     ir.push(inst);
                 }
                 datatype = stmt_datatype;
+            }
+            ExpressionKind::Unary { kind, right } => {
+                let (expr_ir, expr_datatype) = self.compile_expression(*right)?;
+                for inst in expr_ir {
+                    ir.push(inst);
+                }
+
+                match kind {
+                    UnaryOperator::Not => ir.push(Ir::Not),
+                }
+
+                datatype = expr_datatype;
             }
         }
 
@@ -599,5 +612,11 @@ fn compile_time_evaluate(expression: Expression) -> super::Result<Value> {
             Err(())
         }
         ExpressionKind::String(s) => Ok(Value::String(s)),
+        ExpressionKind::Unary { kind, right } => {
+            let value = compile_time_evaluate(*right)?.as_int(loc.clone())?;
+            match kind {
+                UnaryOperator::Not => Ok(Value::Integer(!value)),
+            }
+        }
     }
 }

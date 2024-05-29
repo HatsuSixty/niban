@@ -298,6 +298,14 @@ impl QbeCompiler {
                     let store = datatype_as_store(datatype);
                     let _ = writeln!(self.code, "{store} %r{value}, %r{addr}");
                 }
+                Ir::Not => {
+                    let a = self.pop();
+                    let r = self.push();
+
+                    let _ = writeln!(self.code, "%s{r} =l ceql %r{a}, 0");
+
+                    self.reset_registers();
+                }
             }
         }
     }

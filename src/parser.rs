@@ -38,10 +38,19 @@ impl Operator {
 }
 
 #[derive(Debug, Clone)]
+pub enum UnaryOperator {
+    Not,
+}
+
+#[derive(Debug, Clone)]
 pub enum ExpressionKind {
     Binary {
         kind: Operator,
         left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    Unary {
+        kind: UnaryOperator,
         right: Box<Expression>,
     },
     String(String),
@@ -638,6 +647,21 @@ fn parse_primary_expression(loc: Location, lexer: &mut Lexer) -> super::Result<E
                 loc: token.loc,
             })
         }
+        TokenKind::Exclamation => {
+            lexer.next()?;
+
+            Ok(Expression {
+                expression: ExpressionKind::Unary {
+                    kind: UnaryOperator::Not,
+                    right: Box::new(parse_expression(
+                        token.loc.clone(),
+                        lexer,
+                        (OperatorPrecedence::Primary).higher(),
+                    )?),
+                },
+                loc: token.loc,
+            })
+        },
         TokenKind::OpenParen => {
             lexer.next()?;
 
