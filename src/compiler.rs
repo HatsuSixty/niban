@@ -41,7 +41,10 @@ impl Datatype {
 
     fn mismatches(&self, other: &Datatype) -> bool {
         match (self, other) {
-            (Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64, Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64) => false,
+            (
+                Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64,
+                Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64,
+            ) => false,
             (a, b) => a != b,
         }
     }
@@ -59,7 +62,7 @@ impl Value {
             Self::Integer(i) => Ok(*i),
             e => {
                 eprintln!("{loc}: ERROR: expected integer but got {e:?}");
-                return Err(())
+                return Err(());
             }
         }
     }
@@ -312,9 +315,11 @@ impl Compiler {
                         }
 
                         match &datatypes[0] {
-                            Datatype::I8 | Datatype::I16 | Datatype::I32 | Datatype::I64 | Datatype::Pointer(_) => {
-                                ir.push(Ir::PrintInt)
-                            }
+                            Datatype::I8
+                            | Datatype::I16
+                            | Datatype::I32
+                            | Datatype::I64
+                            | Datatype::Pointer(_) => ir.push(Ir::PrintInt),
                             Datatype::String => ir.push(Ir::PrintString),
                             Datatype::None => {
                                 eprintln!("{loc}: ERROR: mismatched types: expression has type `None` and procedure `{name}` expects `I8`, `I16`, `I32`, `I64` or `Pointer`");
@@ -400,7 +405,11 @@ impl Compiler {
 
                 ir.push(Ir::SetVar(name.clone()));
             }
-            StatementKind::If { condition, then, elsee } => {
+            StatementKind::If {
+                condition,
+                then,
+                elsee,
+            } => {
                 let (expr_ir, _) = self.compile_expression(*condition)?;
                 for inst in expr_ir {
                     ir.push(inst);
@@ -477,7 +486,9 @@ impl Compiler {
                 statement_datatype = ptr_to_datatype;
             }
             StatementKind::WriteIntoAddr { name, expression } => {
-                let addr_datatype = if let Datatype::Pointer(datatype) = self.find_variable(loc.clone(), name.clone())?.datatype {
+                let addr_datatype = if let Datatype::Pointer(datatype) =
+                    self.find_variable(loc.clone(), name.clone())?.datatype
+                {
                     *datatype
                 } else {
                     eprintln!("{loc}: ERROR: write address must be a pointer");
@@ -544,22 +555,12 @@ fn compile_time_evaluate(expression: Expression) -> super::Result<Value> {
                     let right = right.as_int(loc)?;
                     Ok(Value::Integer(left * right))
                 }
-                Operator::Plus => {
-                    match (left, right) {
-                        (Value::String(s), Value::Integer(i)) => {
-                            Ok(Value::String(format!("{s}{i}")))
-                        }
-                        (Value::Integer(i), Value::String(s)) => {
-                            Ok(Value::String(format!("{i}{s}")))
-                        }
-                        (Value::String(a), Value::String(b)) => {
-                            Ok(Value::String(format!("{a}{b}")))
-                        }
-                        (Value::Integer(a), Value::Integer(b)) => {
-                            Ok(Value::Integer(a + b))
-                        }
-                    }
-                }
+                Operator::Plus => match (left, right) {
+                    (Value::String(s), Value::Integer(i)) => Ok(Value::String(format!("{s}{i}"))),
+                    (Value::Integer(i), Value::String(s)) => Ok(Value::String(format!("{i}{s}"))),
+                    (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{a}{b}"))),
+                    (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
+                },
                 Operator::Lt => {
                     let left = left.as_int(loc.clone())?;
                     let right = right.as_int(loc)?;

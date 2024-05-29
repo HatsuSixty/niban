@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 
+use crate::compiler::Datatype;
 use crate::compiler::Ir;
 use crate::compiler::Proc;
 use crate::compiler::Value;
-use crate::compiler::Datatype;
 
 fn datatype_as_load(datatype: Datatype) -> &'static str {
     match datatype {
@@ -238,10 +238,15 @@ impl QbeCompiler {
                     datatype,
                     initial_value,
                 } => {
-                    self.global_variables.insert(name.to_string(), (datatype, initial_value.clone()));
+                    self.global_variables
+                        .insert(name.to_string(), (datatype, initial_value.clone()));
                 }
                 Ir::LocalVar(name, datatype) => {
-                    let _ = writeln!(self.code, "%niban_variable_{name} =l alloc4 {size}", size = datatype.get_size());
+                    let _ = writeln!(
+                        self.code,
+                        "%niban_variable_{name} =l alloc4 {size}",
+                        size = datatype.get_size()
+                    );
                     self.local_variables.insert(name.to_string(), datatype);
                 }
                 Ir::JumpIfNot(label_id) => {

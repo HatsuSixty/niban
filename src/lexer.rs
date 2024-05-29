@@ -189,10 +189,13 @@ impl Token {
             return None;
         }
 
-        Some((Self {
-            token: kind.unwrap(),
-            loc,
-        }, used_chars))
+        Some((
+            Self {
+                token: kind.unwrap(),
+                loc,
+            },
+            used_chars,
+        ))
     }
 
     fn from_keyword(keyword: Keyword, loc: Location) -> Self {
@@ -321,14 +324,15 @@ impl<'a> Lexer<'a> {
             }
         }
 
-
         {
             let chars = if let Some(c) = self.peek_cursor() {
                 vec![self.cursor(), c]
             } else {
                 vec![self.cursor()]
             };
-            if let Some((token, used_chars)) = Token::from_symbols(chars.as_slice(), self.loc.clone()) {
+            if let Some((token, used_chars)) =
+                Token::from_symbols(chars.as_slice(), self.loc.clone())
+            {
                 for _ in 0..used_chars {
                     self.advance_cursor();
                 }

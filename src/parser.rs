@@ -1,4 +1,7 @@
-use crate::{lexer::{Keyword, Lexer, Location, Token, TokenKind}, compiler::Datatype};
+use crate::{
+    compiler::Datatype,
+    lexer::{Keyword, Lexer, Location, Token, TokenKind},
+};
 
 #[derive(Debug, Clone)]
 pub enum Operator {
@@ -310,7 +313,10 @@ fn parse_if(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
             lexer.next()?;
 
             match lexer.peek()? {
-                Some(Token { token: TokenKind::Keyword(Keyword::If), .. }) => {
+                Some(Token {
+                    token: TokenKind::Keyword(Keyword::If),
+                    ..
+                }) => {
                     let iff = lexer.next()?.unwrap();
                     elsee = Some(vec![parse_if(iff.loc, lexer)?]);
                 }
@@ -343,10 +349,17 @@ fn parse_while(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
 }
 
 fn parse_dereference(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
-    let name = expect_token("in dereference statement", lexer, TokenKind::Word("".into()))?;
+    let name = expect_token(
+        "in dereference statement",
+        lexer,
+        TokenKind::Word("".into()),
+    )?;
 
     match lexer.peek()? {
-        Some(Token { token: TokenKind::Equal, .. }) => {
+        Some(Token {
+            token: TokenKind::Equal,
+            ..
+        }) => {
             lexer.next()?;
 
             let expr = parse_expression(lexer.get_loc(), lexer, OperatorPrecedence::lowest())?;
@@ -362,18 +375,16 @@ fn parse_dereference(loc: Location, lexer: &mut Lexer) -> super::Result<Statemen
                 loc,
             })
         }
-        _ => {
-            Ok(Statement {
-                statement: StatementKind::Dereference {
-                    name: if let TokenKind::Word(name) = name.token {
-                        name
-                    } else {
-                        unreachable!();
-                    },
+        _ => Ok(Statement {
+            statement: StatementKind::Dereference {
+                name: if let TokenKind::Word(name) = name.token {
+                    name
+                } else {
+                    unreachable!();
                 },
-                loc,
-            })
-        }
+            },
+            loc,
+        }),
     }
 }
 
@@ -549,7 +560,9 @@ impl OperatorPrecedence {
             (Self::Primary, _) => false,
             (Self::Multiplicative, Operator::Div | Operator::Mult | Operator::Mod) => true,
             (Self::Additive, Operator::Plus | Operator::Minus) => true,
-            (Self::ComparisonLtGt, Operator::Lt | Operator::Gt | Operator::Le | Operator::Ge) => true,
+            (Self::ComparisonLtGt, Operator::Lt | Operator::Gt | Operator::Le | Operator::Ge) => {
+                true
+            }
             (Self::ComparisonEqNq, Operator::Eq | Operator::Nq) => true,
             _ => false,
         }

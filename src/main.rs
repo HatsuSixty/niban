@@ -187,9 +187,21 @@ fn start() -> Result<()> {
 
     if library {
         let output_file_path = format!("{output_file_path}.a");
-        run_command(&["ar", "rcs", &output_file_path, &runtime_file_path, &object_file_path])?;
+        run_command(&[
+            "ar",
+            "rcs",
+            &output_file_path,
+            &runtime_file_path,
+            &object_file_path,
+        ])?;
     } else {
-        run_command(&["ld", "-o", &output_file_path, &runtime_file_path, &object_file_path])?;
+        run_command(&[
+            "ld",
+            "-o",
+            &output_file_path,
+            &runtime_file_path,
+            &object_file_path,
+        ])?;
     }
 
     if run {
