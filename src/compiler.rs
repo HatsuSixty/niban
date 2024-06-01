@@ -249,16 +249,27 @@ impl Compiler {
                 datatype = stmt_datatype;
             }
             ExpressionKind::Unary { kind, right } => {
-                let (expr_ir, expr_datatype) = self.compile_expression(*right)?;
+                let (expr_ir, expr_datatype) = self.compile_expression(*right.clone())?;
                 for inst in expr_ir {
                     ir.push(inst);
                 }
 
                 match kind {
-                    UnaryOperator::Not => ir.push(Ir::Not),
+                    UnaryOperator::Not => {
+                        ir.push(Ir::Not);
+                        datatype = expr_datatype;
+                    }
+                    UnaryOperator::Dereference => {
+                        datatype = match expr_datatype {
+                            Datatype::Pointer(a) => *a,
+                            a => {
+                                eprintln!("{loc}: ERROR: mismatched types: expression has type `{a:?}` and dereference operator expects `Pointer`", loc = right.loc);
+                                return Err(());
+                            }
+                        };
+                        ir.push(Ir::Read(datatype.clone()));
+                    }
                 }
-
-                datatype = expr_datatype;
             }
         }
 
@@ -484,20 +495,6 @@ impl Compiler {
 
                 statement_datatype = Datatype::Pointer(Box::new(variable.datatype));
             }
-            StatementKind::Dereference { name } => {
-                let variable = self.find_variable(loc.clone(), name.clone())?;
-                let ptr_to_datatype = if let Datatype::Pointer(datatype) = variable.datatype {
-                    *datatype
-                } else {
-                    eprintln!("{loc}: ERROR: trying to dereference non-pointer variable");
-                    return Err(());
-                };
-
-                ir.push(Ir::GetVar(name.clone()));
-                ir.push(Ir::Read(ptr_to_datatype.clone()));
-
-                statement_datatype = ptr_to_datatype;
-            }
             StatementKind::WriteIntoAddr { name, expression } => {
                 let addr_datatype = if let Datatype::Pointer(datatype) =
                     self.find_variable(loc.clone(), name.clone())?.datatype
@@ -613,9 +610,13 @@ fn compile_time_evaluate(expression: Expression) -> super::Result<Value> {
         }
         ExpressionKind::String(s) => Ok(Value::String(s)),
         ExpressionKind::Unary { kind, right } => {
-            let value = compile_time_evaluate(*right)?.as_int(loc.clone())?;
+            let value = compile_time_evaluate(*right.clone())?.as_int(loc.clone())?;
             match kind {
                 UnaryOperator::Not => Ok(Value::Integer(!value)),
+                UnaryOperator::Dereference => {
+                    eprintln!("{loc}: ERROR: dereference operators are not supported by compile time evaluation", loc = right.loc);
+                    return Err(());
+                }
             }
         }
     }

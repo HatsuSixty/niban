@@ -40,6 +40,7 @@ impl Operator {
 #[derive(Debug, Clone)]
 pub enum UnaryOperator {
     Not,
+    Dereference,
 }
 
 #[derive(Debug, Clone)]
@@ -99,12 +100,10 @@ pub enum StatementKind {
     AddrOf {
         name: String,
     },
+    #[allow(dead_code)]
     WriteIntoAddr {
         name: String,
         expression: Box<Expression>,
-    },
-    Dereference {
-        name: String,
     },
 }
 
@@ -357,46 +356,6 @@ fn parse_while(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     })
 }
 
-fn parse_dereference(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
-    let name = expect_token(
-        "in dereference statement",
-        lexer,
-        TokenKind::Word("".into()),
-    )?;
-
-    match lexer.peek()? {
-        Some(Token {
-            token: TokenKind::Equal,
-            ..
-        }) => {
-            lexer.next()?;
-
-            let expr = parse_expression(lexer.get_loc(), lexer, OperatorPrecedence::lowest())?;
-            Ok(Statement {
-                statement: StatementKind::WriteIntoAddr {
-                    name: if let TokenKind::Word(name) = name.token {
-                        name
-                    } else {
-                        unreachable!();
-                    },
-                    expression: Box::new(expr),
-                },
-                loc,
-            })
-        }
-        _ => Ok(Statement {
-            statement: StatementKind::Dereference {
-                name: if let TokenKind::Word(name) = name.token {
-                    name
-                } else {
-                    unreachable!();
-                },
-            },
-            loc,
-        }),
-    }
-}
-
 fn parse_addrof(loc: Location, lexer: &mut Lexer) -> super::Result<Statement> {
     let name = expect_token("in addrof statement", lexer, TokenKind::Word("".into()))?;
     Ok(Statement {
@@ -485,7 +444,6 @@ fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
             }
         }
         TokenKind::Ampersand => statement = parse_addrof(token.loc, lexer)?,
-        TokenKind::Mult => statement = parse_dereference(token.loc, lexer)?,
         _ => {
             eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
             return Err(());
@@ -661,7 +619,22 @@ fn parse_primary_expression(loc: Location, lexer: &mut Lexer) -> super::Result<E
                 },
                 loc: token.loc,
             })
-        },
+        }
+        TokenKind::Mult => {
+            lexer.next()?;
+
+            Ok(Expression {
+                expression: ExpressionKind::Unary {
+                    kind: UnaryOperator::Dereference,
+                    right: Box::new(parse_expression(
+                        token.loc.clone(),
+                        lexer,
+                        (OperatorPrecedence::Primary).higher(),
+                    )?),
+                },
+                loc: token.loc,
+            })
+        }
         TokenKind::OpenParen => {
             lexer.next()?;
 
