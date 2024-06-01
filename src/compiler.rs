@@ -296,7 +296,7 @@ impl Compiler {
         let mut ir = Vec::new();
 
         let mut statement_datatype = Datatype::None;
-        let Statement { statement, loc } = statement;
+        let Statement { statement, loc: statement_loc } = statement;
 
         match statement {
             StatementKind::ProcDecl {
@@ -306,7 +306,7 @@ impl Compiler {
             } => {
                 let instructions = self.compile_block(statements)?;
 
-                self.name_redefinition(loc, name.clone())?;
+                self.name_redefinition(statement_loc, name.clone())?;
 
                 let proc = Proc {
                     name: name.clone(),
@@ -334,7 +334,7 @@ impl Compiler {
                 match name.as_str() {
                     "print" => {
                         if expressions.len() != 1 {
-                            eprintln!("{loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
+                            eprintln!("{statement_loc}: ERROR: incorrect amount of arguments for procedure `{name}`");
                             return Err(());
                         }
 
@@ -346,13 +346,13 @@ impl Compiler {
                             | Datatype::Pointer(_) => ir.push(Ir::PrintInt),
                             Datatype::String => ir.push(Ir::PrintString),
                             Datatype::None => {
-                                eprintln!("{loc}: ERROR: mismatched types: expression has type `None` and procedure `{name}` expects `I8`, `I16`, `I32`, `I64` or `Pointer`");
+                                eprintln!("{statement_loc}: ERROR: mismatched types: expression has type `None` and procedure `{name}` expects `I8`, `I16`, `I32`, `I64` or `Pointer`");
                                 return Err(());
                             }
                         }
                     }
                     _ => {
-                        self.find_procedure(loc.clone(), name.clone())?;
+                        self.find_procedure(statement_loc.clone(), name.clone())?;
 
                         if expressions.len() != 0 {
                             let loc = &expressions.last().unwrap().loc;
@@ -400,7 +400,7 @@ impl Compiler {
                     ir.push(Ir::SetVar(name.clone()));
                 }
 
-                self.name_redefinition(loc, name.clone())?;
+                self.name_redefinition(statement_loc, name.clone())?;
 
                 let var = Variable {
                     name: name.clone(),
@@ -409,7 +409,7 @@ impl Compiler {
                 self.scope.last_mut().unwrap().variables.insert(name, var);
             }
             StatementKind::GetVar { name } => {
-                let variable = self.find_variable(loc, name.clone())?;
+                let variable = self.find_variable(statement_loc, name.clone())?;
                 ir.push(Ir::GetVar(name));
 
                 statement_datatype = variable.datatype;
@@ -417,7 +417,7 @@ impl Compiler {
             StatementKind::SetVar { name, expression } => {
                 let (expr_ir, expr_datatype) = self.compile_expression(*expression.clone())?;
 
-                let var = self.find_variable(loc.clone(), name.clone())?;
+                let var = self.find_variable(statement_loc.clone(), name.clone())?;
                 if var.datatype.mismatches(&expr_datatype) {
                     eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and variable has type `{datatype:?}`", loc = expression.loc, datatype = var.datatype);
                     return Err(());
@@ -490,7 +490,7 @@ impl Compiler {
                 self.label_count += 1;
             }
             StatementKind::AddrOf { name } => {
-                let variable = self.find_variable(loc, name.clone())?;
+                let variable = self.find_variable(statement_loc, name.clone())?;
                 ir.push(Ir::AddrOf(name));
 
                 statement_datatype = Datatype::Pointer(Box::new(variable.datatype));
@@ -507,7 +507,7 @@ impl Compiler {
                 }
 
                 if address_datatype.mismatches(&Datatype::Pointer(Box::new(value_datatype.clone()))) {
-                    eprintln!("{loc}: ERROR: mismatched types: memory write operation expects `Pointer({value_datatype:?})` as address but got `{address_datatype:?}`");
+                    eprintln!("{statement_loc}: ERROR: mismatched types: memory write operation expects `Pointer({value_datatype:?})` as address but got `{address_datatype:?}`");
                     return Err(());
                 }
 
