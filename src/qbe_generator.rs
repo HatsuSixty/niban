@@ -306,6 +306,15 @@ impl QbeCompiler {
 
                     self.reset_registers();
                 }
+                Ir::Swap => {
+                    let a = self.pop();
+                    let b = self.pop();
+                    let r1 = self.push();
+                    let r2 = self.push();
+                    let _ = writeln!(self.code, "%s{r1} =l copy %r{a}");
+                    let _ = writeln!(self.code, "%s{r2} =l copy %r{b}");
+                    self.reset_registers();
+                }
             }
         }
     }

@@ -119,6 +119,8 @@ pub enum Ir {
     AddrOf(String),
     Read(Datatype),
     Write(Datatype),
+
+    Swap,
 }
 
 #[derive(Default, Debug)]
@@ -212,26 +214,36 @@ impl Compiler {
                     return Err(());
                 }
 
-                ir.push(match kind {
-                    Operator::Plus => Ir::Plus,
-                    Operator::Minus => Ir::Minus,
-                    Operator::Div => Ir::Div,
-                    Operator::Mult => Ir::Mult,
-                    Operator::Mod => Ir::Mod,
-                    Operator::Lt => Ir::Lt,
-                    Operator::Gt => Ir::Gt,
-                    Operator::Le => Ir::Le,
-                    Operator::Ge => Ir::Ge,
-                    Operator::Eq => Ir::Eq,
-                    Operator::Nq => Ir::Nq,
-                });
+                match kind {
+                    Operator::Plus => {
+                        if let Datatype::Pointer(ref data) = left_datatype {
+                            ir.push(Ir::PushInt(data.get_size() as i64));
+                            ir.push(Ir::Mult);
+                        } else if let Datatype::Pointer(ref data) = right_datatype {
+                            ir.push(Ir::Swap);
+                            ir.push(Ir::PushInt(data.get_size() as i64));
+                            ir.push(Ir::Mult);
+                            ir.push(Ir::Swap);
+                        }
+                        ir.push(Ir::Plus);
+                    }
+                    Operator::Minus => ir.push(Ir::Minus),
+                    Operator::Div => ir.push(Ir::Div),
+                    Operator::Mult => ir.push(Ir::Mult),
+                    Operator::Mod => ir.push(Ir::Mod),
+                    Operator::Lt => ir.push(Ir::Lt),
+                    Operator::Gt => ir.push(Ir::Gt),
+                    Operator::Le => ir.push(Ir::Le),
+                    Operator::Ge => ir.push(Ir::Ge),
+                    Operator::Eq => ir.push(Ir::Eq),
+                    Operator::Nq => ir.push(Ir::Nq),
+                }
 
-                datatype =
-                    if left_datatype == Datatype::String || right_datatype == Datatype::String {
-                        Datatype::String
-                    } else {
-                        left_datatype
-                    };
+                datatype = match (left_datatype, right_datatype) {
+                    (_, Datatype::String) | (Datatype::String, _) => Datatype::String,
+                    (Datatype::Pointer(a), _) | (_, Datatype::Pointer(a)) => Datatype::Pointer(a),
+                    (a, _) => a,
+                };
             }
             ExpressionKind::Integer(i) => {
                 ir.push(Ir::PushInt(i));
