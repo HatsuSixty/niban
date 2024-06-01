@@ -2,7 +2,7 @@ proc main() {
     let y: I32 = 10;
 
     let x: Pointer(I32) = &y;
-    *x = 20;
+    > x <- 20;
 
     let z: Pointer(Pointer(I32)) = &x;
 

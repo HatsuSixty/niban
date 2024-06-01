@@ -73,6 +73,8 @@ pub enum TokenKind {
     NotEqual,
     LessEqual,
     GreaterEqual,
+
+    LeftArrow,
 }
 
 impl TokenKind {
@@ -148,11 +150,16 @@ impl Token {
             '&' => kind = Some(TokenKind::Ampersand),
             '<' => {
                 if chars.len() > 1 {
-                    if chars[1] == '=' {
-                        kind = Some(TokenKind::LessEqual);
-                        used_chars = 2;
-                    } else {
-                        kind = Some(TokenKind::Lt);
+                    match chars[1] {
+                        '=' => {
+                            kind = Some(TokenKind::LessEqual);
+                            used_chars = 2;
+                        }
+                        '-' => {
+                            kind = Some(TokenKind::LeftArrow);
+                            used_chars = 2;
+                        }
+                        _ => kind = Some(TokenKind::Lt),
                     }
                 } else {
                     kind = Some(TokenKind::Lt);

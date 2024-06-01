@@ -495,27 +495,23 @@ impl Compiler {
 
                 statement_datatype = Datatype::Pointer(Box::new(variable.datatype));
             }
-            StatementKind::WriteIntoAddr { name, expression } => {
-                let addr_datatype = if let Datatype::Pointer(datatype) =
-                    self.find_variable(loc.clone(), name.clone())?.datatype
-                {
-                    *datatype
-                } else {
-                    eprintln!("{loc}: ERROR: write address must be a pointer");
-                    return Err(());
-                };
-
-                let (expr_ir, expr_datatype) = self.compile_expression(*expression)?;
-                if expr_datatype.mismatches(&addr_datatype) {
-                    eprintln!("{loc}: ERROR: mismatched types: expression has type `{expr_datatype:?}` and memory location has type `{addr_datatype:?}`");
-                    return Err(());
-                }
-                for inst in expr_ir {
+            StatementKind::WriteIntoAddr { address, value } => {
+                let (address_ir, address_datatype) = self.compile_expression(*address)?;
+                for inst in address_ir {
                     ir.push(inst);
                 }
 
-                ir.push(Ir::GetVar(name.clone()));
-                ir.push(Ir::Write(addr_datatype));
+                let (value_ir, value_datatype) = self.compile_expression(*value)?;
+                for inst in value_ir {
+                    ir.push(inst);
+                }
+
+                if address_datatype.mismatches(&Datatype::Pointer(Box::new(value_datatype.clone()))) {
+                    eprintln!("{loc}: ERROR: mismatched types: memory write operation expects `Pointer({value_datatype:?})` as address but got `{address_datatype:?}`");
+                    return Err(());
+                }
+
+                ir.push(Ir::Write(value_datatype));
             }
         }
 

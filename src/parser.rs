@@ -100,10 +100,9 @@ pub enum StatementKind {
     AddrOf {
         name: String,
     },
-    #[allow(dead_code)]
     WriteIntoAddr {
-        name: String,
-        expression: Box<Expression>,
+        address: Box<Expression>,
+        value: Box<Expression>,
     },
 }
 
@@ -444,6 +443,19 @@ fn parse_statement(lexer: &mut Lexer) -> super::Result<Option<Statement>> {
             }
         }
         TokenKind::Ampersand => statement = parse_addrof(token.loc, lexer)?,
+        TokenKind::Gt => {
+            let addr = parse_expression(token.loc.clone(), lexer, OperatorPrecedence::lowest())?;
+            expect_token("in memory write expression", lexer, TokenKind::LeftArrow)?;
+            let value = parse_expression(token.loc.clone(), lexer, OperatorPrecedence::lowest())?;
+
+            statement = Statement {
+                statement: StatementKind::WriteIntoAddr {
+                    address: Box::new(addr),
+                    value: Box::new(value),
+                },
+                loc: token.loc,
+            }
+        }
         _ => {
             eprintln!("{}: ERROR: unexpected token `{:?}`", token.loc, token.token);
             return Err(());

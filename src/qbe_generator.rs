@@ -292,8 +292,8 @@ impl QbeCompiler {
                     self.reset_registers();
                 }
                 Ir::Write(datatype) => {
-                    let addr = self.pop();
                     let value = self.pop();
+                    let addr = self.pop();
 
                     let store = datatype_as_store(datatype);
                     let _ = writeln!(self.code, "{store} %r{value}, %r{addr}");
