@@ -358,7 +358,7 @@ impl Compiler {
                             | Datatype::Pointer(_) => ir.push(Ir::PrintInt),
                             Datatype::String => ir.push(Ir::PrintString),
                             Datatype::None => {
-                                eprintln!("{statement_loc}: ERROR: mismatched types: expression has type `None` and procedure `{name}` expects `I8`, `I16`, `I32`, `I64` or `Pointer`");
+                                eprintln!("{loc}: ERROR: mismatched types: expression has type `None` and procedure `{name}` expects `I8`, `I16`, `I32`, `I64` or `Pointer`", loc = expressions[0].loc);
                                 return Err(());
                             }
                         }
@@ -508,7 +508,7 @@ impl Compiler {
                 statement_datatype = Datatype::Pointer(Box::new(variable.datatype));
             }
             StatementKind::WriteIntoAddr { address, value } => {
-                let (address_ir, address_datatype) = self.compile_expression(*address)?;
+                let (address_ir, address_datatype) = self.compile_expression(*address.clone())?;
                 for inst in address_ir {
                     ir.push(inst);
                 }
@@ -519,7 +519,7 @@ impl Compiler {
                 }
 
                 if address_datatype.mismatches(&Datatype::Pointer(Box::new(value_datatype.clone()))) {
-                    eprintln!("{statement_loc}: ERROR: mismatched types: memory write operation expects `Pointer({value_datatype:?})` as address but got `{address_datatype:?}`");
+                    eprintln!("{loc}: ERROR: mismatched types: memory write operation expects `Pointer({value_datatype:?})` as address but got `{address_datatype:?}`", loc = address.loc);
                     return Err(());
                 }
 
